@@ -7,6 +7,7 @@ import path from 'node:path'
 import { config } from './config.js'
 import { houseRoutes } from './routes/houses.js'
 import { designRoutes } from './routes/designs.js'
+import { priceRoutes } from './routes/prices.js'
 import { projectRoutes } from './routes/projects.js'
 import { authRoutes } from './routes/auth.js'
 import { runMigrations } from './db/client.js'
@@ -33,6 +34,7 @@ app.get('/api/health', async () => ({ ok: true }))
 await app.register(authRoutes)
 await app.register(houseRoutes)
 await app.register(designRoutes)
+await app.register(priceRoutes)
 await app.register(projectRoutes)
 
 // Production: serve the built web app from the same process (SPA fallback to index.html)

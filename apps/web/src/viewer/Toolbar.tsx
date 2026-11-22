@@ -9,7 +9,7 @@ const FLOORS: Array<[StoreyId, string]> = [[2, 'שנייה'], [1, 'ראשונה'
 const TIMES: Array<[Exclude<TimeOfDay, 'custom'>, string]> = [['morning', 'בוקר'], ['noon', 'צהריים'], ['golden', 'שעת זהב'], ['evening', 'ערב']]
 const QUALITIES: Array<[Quality, string]> = [['high', 'גבוהה'], ['medium', 'בינונית'], ['low', 'נמוכה']]
 
-export type Drawer = 'areas' | 'sun' | 'comments' | 'design' | 'kitchen' | null
+export type Drawer = 'areas' | 'sun' | 'comments' | 'design' | 'kitchen' | 'cost' | null
 export function Toolbar({ viewer, ui, measuring, setMeasuring, drawer, setDrawer, commentCount }: { viewer: Viewer; ui: ViewerUiState; measuring: boolean; setMeasuring: (on: boolean) => void; drawer: Drawer; setDrawer: (d: Drawer) => void; commentCount: number }) {
   const toggle = (d: Exclude<Drawer, null>) => setDrawer(drawer === d ? null : d)
   const [headBob, setHeadBob] = useState(true)
@@ -38,6 +38,7 @@ export function Toolbar({ viewer, ui, measuring, setMeasuring, drawer, setDrawer
       <span className="sep" />
       <button className="btn" aria-pressed={drawer === 'design'} onClick={() => toggle('design')}>עיצוב</button>
       <button className="btn" aria-pressed={drawer === 'kitchen'} onClick={() => toggle('kitchen')}>מטבח</button>
+      <button className="btn" aria-pressed={drawer === 'cost'} onClick={() => toggle('cost')}>עלות</button>
       <button className="btn" aria-pressed={drawer === 'areas'} onClick={() => toggle('areas')}>שטחים</button>
       <button className="btn" aria-pressed={drawer === 'comments'} onClick={() => toggle('comments')}>הערות{commentCount ? ` (${commentCount})` : ''}</button>
       <span className="sep" />

@@ -182,3 +182,26 @@
 .viewer .drawer .mods .acts .btn{padding:4px 7px;font-size:13px;color:var(--muted)}
 .drawer .check{display:flex;gap:8px;align-items:center;font-size:13px}
 .drawer > *{flex-shrink:0}
+
+/* cost (A-06) */
+.costchip{all:unset;cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:9px 12px;border-radius:10px;background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+.costchip .t{font:700 17px var(--font);font-variant-numeric:tabular-nums}
+.costchip .u{font-size:12px;color:var(--muted)}
+.costchip .b{flex-basis:100%;font-size:12px;color:#c2412d}
+.costchip.over{border-color:#c2412d}
+.costchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.drawer.cost .sum .up b{color:#b4690e}
+.drawer.cost input{font:inherit;font-size:14px;color:var(--fg);background:var(--glass-strong);border:1px solid var(--line);border-radius:8px;padding:8px 10px;direction:ltr;text-align:right}
+.drawer .bbar{position:relative;height:22px;border-radius:6px;background:rgba(127,127,127,.15);overflow:hidden;font-size:12px}
+.drawer .bbar i{position:absolute;inset:0 auto 0 0;background:color-mix(in srgb,#1d7a4f 45%,transparent)}
+.drawer .bbar.over i{background:color-mix(in srgb,#c2412d 45%,transparent)}
+.drawer .bbar span{position:relative;padding:0 8px;line-height:22px}
+.drawer table.groups{width:100%;border-collapse:collapse;font-size:13px}
+.drawer table.groups tr.g{cursor:pointer}
+.drawer table.groups tr.g td{padding:6px 0;border-top:1px solid var(--line)}
+.drawer table.groups tr.l td{padding:3px 0 3px 0;font-size:12px;color:var(--muted)}
+.drawer table.groups tr.l td:first-child{padding-inline-start:16px}
+.drawer table.groups small{display:block;font-size:11px;opacity:.8;font-variant-numeric:tabular-nums}
+.drawer table.groups td.num{text-align:left;font-variant-numeric:tabular-nums;white-space:nowrap;padding-inline-start:8px}
+.drawer table.groups td.d{font-size:11px;width:70px}
+.drawer table.groups td.plus{color:#b4690e}.drawer table.groups td.minus{color:#1d7a4f}

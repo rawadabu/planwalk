@@ -13,6 +13,7 @@ import AuthPage from './pages/AuthPage'
 import AppShell from './pages/app/AppShell'
 import Projects from './pages/app/Projects'
 import ProjectPage from './pages/app/ProjectPage'
+import Prices from './pages/app/Prices'
 import InvitePage from './pages/InvitePage'
 import NotFound from './pages/NotFound'
 
@@ -30,6 +31,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/app" element={<AppShell />}>
           <Route index element={<Projects />} />
           <Route path="p/:id" element={<ProjectPage />} />
+          <Route path="prices" element={<Prices />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

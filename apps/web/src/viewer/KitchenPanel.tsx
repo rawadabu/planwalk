@@ -3,6 +3,7 @@ import type { Viewer } from '@planwalk/engine'
 import type { House, StoreyId } from '@planwalk/house'
 import { MODULES, PX_PER_CM, applyEdits, autoFill, checkRun, editKey, isTall, runUsed, runsFromPlan, windowsBehind, type Module, type ModuleType, type Run } from '@planwalk/design'
 import { renderDesign, type DesignSession } from './DesignPanel'
+import { CostChip, useCost } from './Cost'
 
 const TYPES = Object.keys(MODULES).filter(t => t !== 'filler') as ModuleType[]
 const kitchenRoom = (h: House) => {
@@ -14,7 +15,7 @@ const kitchenRoom = (h: House) => {
  * Kitchen designer (sheet A-05): the runs along the kitchen walls, module by module, with an elevation drawing.
  * Runs live in the design (edits "run:…"), so undo/redo, saving and versions work as for everything else.
  */
-export function KitchenPanel({ viewer, house, session, onHouse, onClose }: { viewer: Viewer; house: House; session: DesignSession; onHouse: (h: House) => void; onClose: () => void }) {
+export function KitchenPanel({ viewer, house, houseId, prices, session, onHouse, onClose, onCost }: { viewer: Viewer; house: House; houseId: string; prices?: Record<string, unknown> | null; session: DesignSession; onHouse: (h: House) => void; onClose: () => void; onCost: () => void }) {
   const doc = session.doc
   const [, bump] = useState(0)
   const [sel, setSel] = useState<number | null>(null)
@@ -23,6 +24,7 @@ export function KitchenPanel({ viewer, house, session, onHouse, onClose }: { vie
   const runs = Object.entries(doc.design.edits).filter(([, e]) => e.k === 'run') as Array<[string, Run]>
   const eff = useMemo(() => applyEdits(house, doc.design.edits).house, [house, doc.design.edits])
   const k = kitchenRoom(house)
+  const cost = useCost(house, doc.design, prices as never)
 
   const start = () => {
     if (!k) return
@@ -99,6 +101,7 @@ export function KitchenPanel({ viewer, house, session, onHouse, onClose }: { vie
         <span className="grow" />
         <button className="btn reset" onClick={() => { if (doc.setEdit(key, null)) show() }}>חזרה למטבח שבתוכנית</button>
       </div>
+      <CostChip report={cost} houseId={houseId} onOpen={onCost} />
       <p className="fine">שמירה וגרסאות: בחלונית "עיצוב". המטבח הוא חלק מהעיצוב.</p>
     </section>
   )

@@ -3,6 +3,7 @@ import type { Viewer, SurfaceHit } from '@planwalk/engine'
 import type { House, StoreyId } from '@planwalk/house'
 import { DesignDoc, PARTS, PART_IDS, ROOM_PARTS, PX_PER_CM, applyEdits, editKey, emptyDesign, findPartition, finish, finishesFor, resolveFinish, roomLooks, storeyLooks, targetKey, validate, windowInfo, type Design, type Part, type WallEdit, type WindowEdit } from '@planwalk/design'
 import { api, ApiError, STATIC, type DesignRow, type HouseMeta } from '../api'
+import { CostChip, useCost } from './Cost'
 
 type Scope = 'all' | 'floor' | 'room'
 const isRoomPart = (p: Part) => (ROOM_PARTS as readonly string[]).includes(p)
@@ -22,7 +23,7 @@ export function renderDesign(viewer: Viewer, base: House, session: DesignSession
   viewer.applyDesign(storeyLooks(d), roomLooks(d))
 }
 
-export function DesignPanel({ viewer, house, houseId, meta, floor, onClose, onHouse, session }: { viewer: Viewer; house: House; houseId: string; meta: HouseMeta; floor: StoreyId; onClose: () => void; onHouse: (h: House) => void; session: DesignSession }) {
+export function DesignPanel({ viewer, house, houseId, meta, floor, onClose, onHouse, session, onCost }: { viewer: Viewer; house: House; houseId: string; meta: HouseMeta; floor: StoreyId; onClose: () => void; onHouse: (h: House) => void; session: DesignSession; onCost: () => void }) {
   const docRef = useRef(session.doc)
   const [, bump] = useState(0)
   const rerender = useCallback(() => bump(n => n + 1), [])
@@ -104,6 +105,7 @@ export function DesignPanel({ viewer, house, houseId, meta, floor, onClose, onHo
   useEffect(() => () => viewer.highlight(null), [viewer])
   const clearSel = () => { setSel(null); viewer.highlight(null); setScope('all') }
 
+  const cost = useCost(house, doc.design, meta.prices as never)
   const issues = useMemo(() => [...validate(doc.design, house), ...eff.issues.map(i => ({ target: i.key, level: i.level, message: i.message }))], [doc.design, house, eff])
   const selFloor = (sel?.floor ?? floor) as StoreyId
   const sc = scope === 'room' && sel?.room != null ? { floor: selFloor, room: sel.room } : scope === 'floor' ? { floor: selFloor } : {}
@@ -155,6 +157,7 @@ export function DesignPanel({ viewer, house, houseId, meta, floor, onClose, onHo
         <span className="grow" />
         {member && active && can.update && <button className="btn primary" disabled={busy || !doc.dirty || issues.some(i => i.level === 'error')} onClick={save}>{doc.dirty ? 'שמירה' : 'נשמר'}</button>}
       </div>
+      <CostChip report={cost} houseId={houseId} onOpen={onCost} />
       {active && <p className="fine">גרסה {active.version}{doc.dirty ? ' · יש שינויים שלא נשמרו' : ''}</p>}
       {msg && <p className={msg.ok ? 'okline' : 'errline'} role="status">{msg.text}{msg.theirs && <> <button className="link" onClick={takeTheirs}>לטעון את הגרסה שלהם</button></>}</p>}
     </section>

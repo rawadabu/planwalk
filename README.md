@@ -105,3 +105,9 @@ Roles: owner/admin/architect create, edit, delete · sales create, edit · viewe
 `runsFromPlan` finds the runs the plan draws in the kitchen (length from the drawing), `autoFill` fills a run exactly with standard widths (fridge/oven/pantry 60, hob, sink, dishwasher, drawers 30–120, filler ≤ 15 cm),
 `checkRun` applies fitter's rules (length, valid widths, hob vs tall unit and sink, dishwasher next to the sink, walkway ≥ 90 cm to the island), `applyRun` turns modules into `cabinet` items + worktop for the engine.
 Sizes: base 87 cm + 3 cm worktop, depth 60, tall 220, wall units 70 cm high from 145 cm, never in front of a window.
+
+## Costing (sheet A-06)
+
+`packages/design/src/cost.ts`: `costReport(base, design, prices)` → lines grouped by room / kitchen / changes, net, VAT, total, the architect's base total and the upgrade over it.
+Quantities come from the edited house: floor and ceiling m² (written dimensions first), wall m² = perimeter × 2.8 m − windows on the room's edges, kitchen modules by type and width (fronts multiplier per joinery finish), worktop and installation per metre, window changes (fee + extra glazed m²), moved partitions per m² of wall, frame recolour.
+Price book per organisation (`price_book` table, `GET/PUT /api/orgs/:org/prices`, owner/admin edit, strict validation) over example defaults; the house meta carries it to the viewer. UI: live cost line in the Design and Kitchen panels, a Cost panel (budget, breakdown, change per room), and Price book in the app.

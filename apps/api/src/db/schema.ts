@@ -188,3 +188,11 @@ export const designRevision = pgTable('design_revision', {
   authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex('design_rev_unique').on(t.designId, t.version)])
+
+/** An organisation's prices (over the default example prices). One row per organisation. */
+export const priceBook = pgTable('price_book', {
+  organizationId: text('organization_id').primaryKey().references(() => organization.id, { onDelete: 'cascade' }),
+  data: jsonb('data').notNull(),
+  updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})

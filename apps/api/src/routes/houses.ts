@@ -4,7 +4,7 @@ import { and, desc, eq, gt, isNull, or, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { parseHouse } from '@planwalk/house'
 import { db } from '../db/client.js'
-import { comment, house, member, project, shareLink } from '../db/schema.js'
+import { comment, house, member, priceBook, project, shareLink } from '../db/schema.js'
 import { getSession, requireProject, roleIn } from '../lib/guard.js'
 import { can } from '../lib/permissions.js'
 import { storage } from '../lib/storage.js'
@@ -91,8 +91,9 @@ export async function houseRoutes(app: FastifyInstance) {
     const a = await access(req, req.params.id); if (!a) return deny(reply)
     const [p] = a.house.projectId ? await db.select().from(project).where(eq(project.id, a.house.projectId)).limit(1) : []
     reply.header('cache-control', 'private, no-store')
+    const [pb] = p ? await db.select({ data: priceBook.data }).from(priceBook).where(eq(priceBook.organizationId, p.organizationId)).limit(1) : []
     return {
-      id: a.house.id, title: a.house.title,
+      id: a.house.id, title: a.house.title, prices: pb?.data ?? null,
       location: p?.lat != null && p?.lng != null ? { address: p.address, lat: p.lat, lng: p.lng, north: p.northDeg ?? 0 } : null,
       viewer: { signedIn: !!a.session, name: a.session?.user.name ?? null, role: a.role, via: a.role ? 'member' : a.share ? 'share' : 'public' },
       can: { comment: mayComment(a), resolve: mayResolve(a) },

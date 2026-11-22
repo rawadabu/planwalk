@@ -14,6 +14,8 @@ export interface NewShare extends Omit<ShareRow, 'createdAt' | 'revokedAt'> { to
 
 export interface HouseMeta {
   id: string; title: string
+  /** the owning organisation's prices over the defaults (null = example prices) */
+  prices?: Record<string, unknown> | null
   location: { address: string | null; lat: number; lng: number; north: number } | null
   viewer: { signedIn: boolean; name: string | null; role: string | null; via: 'member' | 'share' | 'public' }
   can: { comment: boolean; resolve: boolean }
@@ -35,7 +37,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) })
 const shareHdr = (share?: string): RequestInit => (share ? { headers: { 'x-share-token': share } } : {})
 // The demo house in the static build: same location as the seeded demo project, read-only
-const DEMO_META: HouseMeta = { id: 'twin-a', title: 'בית דו־משפחתי · יחידה א׳', location: { address: 'Herzliya, Israel', lat: 32.1663, lng: 34.8433, north: 0 }, viewer: { signedIn: false, name: null, role: null, via: 'public' }, can: { comment: false, resolve: false } }
+const DEMO_META: HouseMeta = { id: 'twin-a', title: 'בית דו־משפחתי · יחידה א׳', prices: null, location: { address: 'Herzliya, Israel', lat: 32.1663, lng: 34.8433, north: 0 }, viewer: { signedIn: false, name: null, role: null, via: 'public' }, can: { comment: false, resolve: false } }
 
 export const api = {
   me: () => req<Me>('/api/me'),
@@ -63,6 +65,8 @@ export const api = {
   design: (id: string) => req<DesignFull>(`/api/designs/${id}`),
   saveDesign: (id: string, b: { version: number; data: unknown; name?: string }) => req<DesignFull>(`/api/designs/${id}`, json('PUT', b)),
   deleteDesign: (id: string) => req<void>(`/api/designs/${id}`, { method: 'DELETE' }),
+  orgPrices: (org: string) => req<{ defaults: any; prices: any; updatedAt: string | null; canEdit: boolean }>(`/api/orgs/${org}/prices`),
+  saveOrgPrices: (org: string, prices: unknown) => req<{ prices: any; updatedAt: string }>(`/api/orgs/${org}/prices`, json('PUT', prices)),
   houseUrl: (id: string, share?: string) => STATIC ? `./houses/${id}/house.json` : `/api/houses/${id}/house.json${share ? `?share=${encodeURIComponent(share)}` : ''}`,
   houseFile: (id: string, file: string, share?: string) => STATIC ? `./houses/${id}/${file}` : `/api/houses/${id}/${file}${share ? `?share=${encodeURIComponent(share)}` : ''}`,
   libraryUrl: STATIC ? './library/' : '/api/library/',

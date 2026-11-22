@@ -33,7 +33,7 @@ export default function AppShell() {
             {me.organizations.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
         )}
-        <div className="links"><Link to="/app">Projects</Link><Link to="/">Website</Link></div>
+        <div className="links"><Link to="/app">Projects</Link><Link to="/app/prices">Price book</Link><Link to="/">Website</Link></div>
         <span className="who">{me.user.name}</span>
         <button className="btn sm" onClick={async () => { await signOut(); nav('/') }}>Sign out</button>
       </div></nav>

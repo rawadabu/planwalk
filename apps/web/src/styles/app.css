@@ -93,3 +93,17 @@ table select{padding:6px 8px;font-size:13px}
 .locform .hits li+li button{border-top:1px solid var(--line)}
 .locform .hits button:hover{background:rgba(127,127,127,.1)}
 .locform > .btn{align-self:flex-start}
+
+.prices .lede{color:var(--muted);max-width:65ch}
+.prices{display:block;padding-block:28px 0}
+.prices .phead{display:flex;flex-direction:column;gap:6px;max-width:720px}
+.prices .phead h1{margin:0}
+.prices .psec{margin-top:28px}
+.prices .psec h2{margin:0 0 8px}
+.ptable{border-collapse:collapse;width:100%;max-width:720px;font-size:14px}
+.ptable td{border-bottom:1px solid var(--line);padding:6px 8px 6px 0}
+.ptable td.r{width:140px}
+.ptable td.u{color:var(--muted);font-size:12px;white-space:nowrap}
+.ptable input{width:120px;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;text-align:right;font-variant-numeric:tabular-nums}
+.ptable input::placeholder{color:var(--muted);opacity:.7}
+.prices .savebar{position:sticky;bottom:0;display:flex;gap:14px;align-items:center;padding:14px 0;background:var(--bg);margin-top:20px;border-top:1px solid var(--line)}

@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseHouse } from '@planwalk/house'
-import { autoFill, checkRun, runsFromPlan, runUsed, runFootprint, windowsBehind, applyEdits, editKey, findPartition, windowInfo, PX_PER_CM, DesignDoc, emptyDesign, parseDesign, parseTarget, resolveFinish, storeyLooks, roomLooks, targetKey, validate, finishesFor, BASE, PART_IDS, finish } from '../src/index'
+import { costReport, roomQuantities, DEFAULT_PRICES, priceBook, autoFill, checkRun, runsFromPlan, runUsed, runFootprint, windowsBehind, applyEdits, editKey, findPartition, windowInfo, PX_PER_CM, DesignDoc, emptyDesign, parseDesign, parseTarget, resolveFinish, storeyLooks, roomLooks, targetKey, validate, finishesFor, BASE, PART_IDS, finish } from '../src/index'
 
 const house = parseHouse(JSON.parse(readFileSync(new URL('../../../storage/houses/twin-a/house.json', import.meta.url), 'utf8')))
 
@@ -207,4 +207,43 @@ test('kitchen: walkway is measured to the island, not to chairs', () => {
   const deep = { ...run, depth: 60 }
   const near = { ...deep, x: deep.x + 40 }                                  // pushed 40 px towards the island
   assert.equal(checkRun(near, h).filter(i => /walk/.test(i.message)).length, 1)
+})
+
+test('cost: the base costs the base; VAT is 18%; groups add up', () => {
+  const r = costReport(house, emptyDesign())
+  assert.ok(r.total > 50000, `total ${r.total}`)
+  assert.equal(r.upgrade, 0)
+  assert.ok(Math.abs(r.total - r.net * 1.18) <= 1)
+  assert.ok(Math.abs(r.byGroup.reduce((a, g) => a + g.total, 0) - r.net) <= r.byGroup.length)
+  assert.deepEqual(r.missing, [])
+  assert.ok(r.byGroup.some(g => g.group === 'מטבח'), 'the plan kitchen is priced')
+})
+
+test('cost: room quantities follow the written dimensions', () => {
+  const kids = house.floors[2].rooms.findIndex(r => r[1] === '370 × 360')
+  const q = roomQuantities(house, 2, kids)
+  assert.ok(Math.abs(q.floor - 3.7 * 3.6) < 1e-9)
+  assert.ok(q.walls < 2 * (3.7 + 3.6) * 2.8 && q.walls > 30, 'windows come off the walls')
+})
+
+test('cost: a choice changes the price by exactly its quantity × price difference', () => {
+  const living = house.floors[1].rooms.findIndex(r => r[0] === 'סלון')
+  const q = roomQuantities(house, 1, living)
+  const d = { ...emptyDesign(), finishes: { [`floor@f1.r${living}`]: 'wood-oak' } }
+  const r = costReport(house, d)
+  const expected = q.floor * (DEFAULT_PRICES.finishes['wood-oak'] - DEFAULT_PRICES.finishes['tile-light']) * 1.18
+  assert.ok(Math.abs(r.upgrade - expected) <= 2, `${r.upgrade} vs ${expected}`)
+})
+
+test('cost: kitchen, windows and moved walls are priced; the book overrides defaults', () => {
+  const run = { ...runsFromPlan(house, 1, 3)[0], uppers: true }
+  const win = { k: 'window' as const, floor: 2 as const, index: 0, width: 201 }
+  const d = { ...emptyDesign(), finishes: { 'joinery@all': 'lacquer-navy', 'worktop@all': 'stone-travertine' }, edits: { 'run:f1.0': run, [editKey(win)]: win } }
+  const r = costReport(house, d)
+  assert.ok(r.lines.some(l => l.item.startsWith('ארונות עליונים')))
+  assert.ok(r.lines.some(l => l.item.startsWith('שינוי חלון')))
+  assert.ok(r.upgrade > 0)
+  const cheaper = costReport(house, d, { finishes: { 'stone-travertine': 100 } })
+  assert.ok(cheaper.total < r.total)
+  assert.equal(priceBook({ vat: .17 }).finishes['tile-light'], DEFAULT_PRICES.finishes['tile-light'])
 })
