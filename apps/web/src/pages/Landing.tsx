@@ -1,5 +1,9 @@
 import { useEffect } from 'react'
 import '../styles/landing.css'
+import { STATIC } from '../api'
+// In the static demo build, links are hash routes and images sit next to index.html
+const L = (p: string) => (STATIC ? '#' + p : p)
+const IMG = STATIC ? './img/' : '/img/'
 
 // Marketing page. All "walk the demo" links open the real viewer at /h/twin-a.
 export default function Landing() {
@@ -12,8 +16,8 @@ export default function Landing() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M3 3h18v18H3z"/><path d="M3 12h9v9M12 3v5"/><circle cx="17" cy="16" r="1.6" fill="currentColor" stroke="none"/></svg>
             Planwalk
           </a>
-          <div className="links"><a href="#how">How it works</a><a href="#demo">Demo house</a><a href="#pricing">Pricing</a><a href="/app">Sign in</a></div>
-          <a className="btn sm primary" href="/h/twin-a">Walk the demo</a>
+          <div className="links"><a href="#how">How it works</a><a href="#demo">Demo house</a><a href="#pricing">Pricing</a><a href={L('/app')}>Sign in</a></div>
+          <a className="btn sm primary" href={L('/h/twin-a')}>Walk the demo</a>
         </div>
       </nav>
       
@@ -24,15 +28,15 @@ export default function Landing() {
             <h1 style={{ marginTop: 14 }}>Walk through your home before the first wall goes up.</h1>
             <p className="lede">Upload the architect's plans. Planwalk rebuilds every storey 1:1 in 3D, with walls taken straight from the drawing and furniture designed with AI, and gives your buyers a link they can walk through on any phone.</p>
             <div className="ctas">
-              <a className="btn primary" href="/h/twin-a">Walk the demo house
+              <a className="btn primary" href={L('/h/twin-a')}>Walk the demo house
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
               <a className="btn" href="#how">How it works</a>
             </div>
             <div className="chips"><span className="chip">PDF · DWG plans</span><span className="chip">Scale 1:100</span><span className="chip">Hebrew &amp; English</span><span className="chip">No app to install</span></div>
           </div>
-          <a className="shot" href="/h/twin-a" style={{ "--i": 2, textDecoration: "none" } as React.CSSProperties} aria-label="Open the demo walkthrough">
+          <a className="shot" href={L('/h/twin-a')} style={{ "--i": 2, textDecoration: "none" } as React.CSSProperties} aria-label="Open the demo walkthrough">
             <div className="bar"><i></i><i></i><i></i><span>planwalk · twin house, unit A · living room</span></div>
-            <img src="/img/living.jpg" alt="Walkthrough view of the demo house living room: bouclé sofa and armchairs, floating oak stair, double-height space" width="986" height="684" />
+            <img src={IMG + 'living.jpg'} alt="Walkthrough view of the demo house living room: bouclé sofa and armchairs, floating oak stair, double-height space" width="986" height="684" />
             <div className="tag"><b>Living room</b> · 780 × 410 cm, as on the plan</div>
           </a>
         </div>
@@ -65,12 +69,12 @@ export default function Landing() {
           <div className="wrap">
             <div className="sechead">
               <div><div className="eyebrow">Demo house</div><h2>Twin house, unit A</h2></div>
-              <a className="btn" href="/h/twin-a">Open the walkthrough</a>
+              <a className="btn" href={L('/h/twin-a')}>Open the walkthrough</a>
             </div>
             <div className="gallery">
-              <figure className="big"><img src="/img/golden.jpg" alt="Golden-hour light with leaf shadows on the walls, kitchen and island in the background" loading="lazy" /><figcaption><b>Golden hour</b> · sunlight enters through the real window openings</figcaption></figure>
-              <figure><img src="/img/kitchen.jpg" alt="Kitchen with a sculptural travertine island, dining chairs and walnut cabinetry" loading="lazy" /><figcaption><b>Kitchen</b> · 440 × 460 cm, island and table on their plan footprint</figcaption></figure>
-              <figure><img src="/img/master.jpg" alt="Master bedroom with king bed and sliding door to the balcony" loading="lazy" /><figcaption><b>Master bedroom</b> · top floor, 400 × 360 cm</figcaption></figure>
+              <figure className="big"><img src={IMG + 'golden.jpg'} alt="Golden-hour light with leaf shadows on the walls, kitchen and island in the background" loading="lazy" /><figcaption><b>Golden hour</b> · sunlight enters through the real window openings</figcaption></figure>
+              <figure><img src={IMG + 'kitchen.jpg'} alt="Kitchen with a sculptural travertine island, dining chairs and walnut cabinetry" loading="lazy" /><figcaption><b>Kitchen</b> · 440 × 460 cm, island and table on their plan footprint</figcaption></figure>
+              <figure><img src={IMG + 'master.jpg'} alt="Master bedroom with king bed and sliding door to the balcony" loading="lazy" /><figcaption><b>Master bedroom</b> · top floor, 400 × 360 cm</figcaption></figure>
             </div>
           </div>
         </section>
@@ -97,13 +101,13 @@ export default function Landing() {
                 <div className="tier">Single home</div>
                 <div className="amt">₪349 <small>/ home</small></div>
                 <ul><li>All storeys of one home</li><li>Furnished walkthrough link</li><li>Tape measure and time of day</li></ul>
-                <a className="btn" href="/h/twin-a">See the demo</a>
+                <a className="btn" href={L('/h/twin-a')}>See the demo</a>
               </div>
               <div className="price featured">
                 <div className="tier">Studio</div>
                 <div className="amt">₪1,190 <small>/ month</small></div>
                 <ul><li>Up to 10 homes a month</li><li>Your logo on shared walkthroughs</li><li>For architects and interior designers</li></ul>
-                <a className="btn primary" href="/h/twin-a">Walk the demo</a>
+                <a className="btn primary" href={L('/h/twin-a')}>Walk the demo</a>
               </div>
               <div className="price">
                 <div className="tier">Developer</div>
@@ -114,13 +118,13 @@ export default function Landing() {
             </div>
             <div className="cta">
               <div><h2>See it on a real plan.</h2><p>The demo is a two-family house built from its architect's PDF.</p></div>
-              <a className="btn primary" href="/h/twin-a">Walk the demo house</a>
+              <a className="btn primary" href={L('/h/twin-a')}>Walk the demo house</a>
             </div>
           </div>
         </section>
       </main>
       
-      <footer><div className="wrap"><span>Planwalk · concept build</span><span>Prices are placeholders · <a href="/app" style={{ color: "inherit" }}>Customer dashboard</a></span></div></footer>
+      <footer><div className="wrap"><span>Planwalk · concept build</span><span>Prices are placeholders · <a href={L('/app')} style={{ color: "inherit" }}>Customer dashboard</a></span></div></footer>
     </>
   )
 }

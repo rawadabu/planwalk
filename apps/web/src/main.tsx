@@ -1,6 +1,8 @@
 import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from 'react-router'
+import { BrowserRouter, HashRouter, Routes, Route } from 'react-router'
+import { STATIC } from './api'
+const Router = STATIC ? HashRouter : BrowserRouter
 import './styles/tokens.css'
 import Landing from './pages/Landing'
 // The 3D viewer (three.js ≈ 220 kB gzip) loads only when a walkthrough is opened
@@ -15,7 +17,7 @@ import NotFound from './pages/NotFound'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <Router>
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/h/:houseId" element={<Suspense fallback={null}><ViewerPage /></Suspense>} />
@@ -29,6 +31,6 @@ createRoot(document.getElementById('root')!).render(
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   </StrictMode>,
 )

@@ -9,6 +9,8 @@ export type * from './types'
  */
 export function createViewer(options: ViewerOptions): Viewer {
   const exp = new Experience(options)
+  // automated visual checks (?test) can pose the camera directly
+  if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('test')) (globalThis as any).__exp = exp
   const subs: Array<() => void> = []
   const on = <K extends keyof ViewerEvents>(event: K, handler: ViewerEvents[K]) => {
     exp.on(event, handler as (...a: unknown[]) => void)

@@ -1,3 +1,5 @@
+// Static demo build (npm run build:demo): no server, files next to index.html, hash routes.
+export const STATIC = import.meta.env.VITE_STATIC === '1'
 // Typed client for the Planwalk API. Same-origin (/api), cookies carry the session.
 export type ProjectKind = 'development' | 'private'
 export type UnitStatus = 'available' | 'reserved' | 'sold'
@@ -33,7 +35,7 @@ export const api = {
   createShare: (houseId: string, b: { permission: 'view' | 'comment'; expiresInDays: number | null; label?: string }) => req<NewShare>(`/api/houses/${houseId}/shares`, json('POST', b)),
   revokeShare: (id: string) => req<void>(`/api/shares/${id}`, { method: 'DELETE' }),
   resolveShare: (token: string) => req<{ houseId: string; title: string; permission: string; expiresAt: string | null }>(`/api/share/${encodeURIComponent(token)}`),
-  houseUrl: (id: string, share?: string) => `/api/houses/${id}/house.json${share ? `?share=${encodeURIComponent(share)}` : ''}`,
-  houseFile: (id: string, file: string, share?: string) => `/api/houses/${id}/${file}${share ? `?share=${encodeURIComponent(share)}` : ''}`,
-  libraryUrl: '/api/library/',
+  houseUrl: (id: string, share?: string) => STATIC ? `./houses/${id}/house.json` : `/api/houses/${id}/house.json${share ? `?share=${encodeURIComponent(share)}` : ''}`,
+  houseFile: (id: string, file: string, share?: string) => STATIC ? `./houses/${id}/${file}` : `/api/houses/${id}/${file}${share ? `?share=${encodeURIComponent(share)}` : ''}`,
+  libraryUrl: STATIC ? './library/' : '/api/library/',
 }

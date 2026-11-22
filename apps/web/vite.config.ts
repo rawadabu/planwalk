@@ -2,7 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // Dev: the API runs on :8787 and Vite proxies /api to it. Prod: the API serves dist/ itself.
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  base: mode === 'demo' ? './' : '/',
   plugins: [react()],
   server: { port: 5173, proxy: { '/api': 'http://127.0.0.1:8787' } },
   worker: { format: 'es' },
@@ -19,4 +20,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

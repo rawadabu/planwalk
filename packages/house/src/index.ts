@@ -79,5 +79,6 @@ export function parseHouse(json: unknown): House {
 }
 
 /** Shared library of 3D models every house can reference by name (generated once, reused). */
-export const LIBRARY_MODELS = ['sofa', 'armchair', 'coffeeTable', 'nestingTable', 'roundTable', 'island', 'diningChair', 'oliveTree', 'succulent', 'vase'] as const
+export const LIBRARY_MODELS = ['sofa', 'armchair', 'coffeeTable', 'nestingTable', 'roundTable', 'island', 'diningChair', 'oliveTree', 'succulent', 'vase',
+  'bedDouble', 'bedSingle', 'nightstand', 'toilet', 'bathtub', 'vanity', 'desk', 'deskChair'] as const
 export type LibraryModel = (typeof LIBRARY_MODELS)[number]
