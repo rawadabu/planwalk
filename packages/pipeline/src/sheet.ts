@@ -5,6 +5,7 @@ import { calibrate } from './scale'
 import { asCm, type Read } from './read'
 import { drawings, mirrorAxis, unitOf, alignTo, placePoly, placePt, bbox, type Drawing, type Place, type Poly } from './plan'
 import { Grid, components } from './raster'
+import { findStairs, findRailings, type Stroke, type Stair } from './stairs'
 
 /**
  * plan@1 — what the pipeline understood from a sheet, before anything is built: storeys, walls, openings, rooms with
@@ -32,8 +33,8 @@ export interface PlanRoom {
   void?: boolean
 }
 export interface PlanOpening { kind: 'door' | 'window' | 'glass-door'; rect: Box; axis: 'h' | 'v'; sill: number; head: number; hinge?: Pt; swing?: Pt; sure: boolean }
-export interface PlanNote { text: string; at: Pt; kind: 'fixture' | 'room' | 'note' }
-export interface PlanStorey { storey: number; name: string; title: string | null; drawing: number; side: 'left' | 'right' | 'whole'; place: Place; match: number; bounds: Box; walls: Poly[]; openings: PlanOpening[]; rooms: PlanRoom[]; notes: PlanNote[] }
+export interface PlanNote { text: string; at: Pt; box: Box; kind: 'fixture' | 'room' | 'note' }
+export interface PlanStorey { storey: number; name: string; title: string | null; drawing: number; side: 'left' | 'right' | 'whole'; place: Place; match: number; bounds: Box; walls: Poly[]; openings: PlanOpening[]; rooms: PlanRoom[]; notes: PlanNote[]; stairs: Stair[]; railings: Box[]; strokes: Stroke[] }
 export interface Plan {
   format: 'plan@1'
   scale: { ptPerCm: number; pxPerPt: number; from: 'dimensions' | 'assumed'; dimensions: number; agree: number; written: number | null }
@@ -115,18 +116,21 @@ export function understand(L: PdfLayers, read: Map<number, Read>, opts: Options 
     const walls = P.unit.walls.map(p => round(placePoly(pl, p)))
     const ops = O.openings.filter(o => mine(o.box, di))
     const labels = A.text.filter(l => l.text && mine(l.box, di) && read.get(l.id)?.kind !== 'title')
-    const lines: Array<[Pt, Pt]> = []
+    // everything else drawn on this storey (furniture, stairs, railings, fixtures), in house px
+    const strokes: Stroke[] = []
     for (const p of L.paths) {
       if (roles[p.layer] !== 'other' && roles[p.layer] !== 'furniture') continue
-      for (const sub of p.subs) for (let i = 0; i + 1 < sub.points.length; i++) {
-        const a = sub.points[i], b = sub.points[i + 1]
-        if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 25 || !mine([Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])], di)) continue
-        lines.push([placePt(pl, a), placePt(pl, b)])
+      for (const sub of p.subs) {
+        let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity
+        for (const [x, y] of sub.points) { if (x < x1) x1 = x; if (y < y1) y1 = y; if (x > x2) x2 = x; if (y > y2) y2 = y }
+        if (!mine([x1, y1, x2, y2], di)) continue
+        const pts = sub.points.map(q => placePt(pl, q))
+        strokes.push({ pts, width: p.width, dashed: p.dashed, curved: sub.curved, closed: sub.closed, layer: p.layer })
       }
     }
-    const r = analyse(walls, ops.map(o => place(o, pl)), lines, labels.map(l => ({ text: l.text!, kind: read.get(l.id)!.kind, box: placeBox(pl, l.box), size: Math.min(l.box[2] - l.box[0], l.box[3] - l.box[1]) * Math.abs(pl.sx) })))
+    const r = analyse(walls, ops.map(o => place(o, pl)), strokes, labels.map(l => ({ text: l.text!, kind: read.get(l.id)!.kind, box: placeBox(pl, l.box), size: Math.min(l.box[2] - l.box[0], l.box[3] - l.box[1]) * Math.abs(pl.sx) })))
     const [x1, y1, x2, y2] = bbox(walls)
-    storeys.push({ storey, name: STOREY_NAMES[storey] ?? `קומה ${storey}`, title: title || null, drawing: di, side: P.side, place: pl, match: +P.match.toFixed(3), bounds: [Math.round(x1 - 30), Math.round(y1 - 30), Math.round(x2 + 30), Math.round(y2 + 30)], walls, ...r })
+    storeys.push({ storey, name: STOREY_NAMES[storey] ?? `קומה ${storey}`, title: title || null, drawing: di, side: P.side, place: pl, match: +P.match.toFixed(3), bounds: [Math.round(x1 - 30), Math.round(y1 - 30), Math.round(x2 + 30), Math.round(y2 + 30)], walls, rooms: r.rooms, openings: r.openings, notes: r.notes, stairs: r.stairs, railings: r.railings, strokes })
   }
   // a living room named again on the storey above it is the opening over it (double height), not a second living room
   for (const up of storeys) {
@@ -152,7 +156,7 @@ function place(o: Opening, pl: Place): PxOpening {
 interface PxLabel { text: string; kind: Read['kind']; box: Box; size: number }
 
 /** Rooms and classified openings of one storey (house px). */
-export function analyse(walls: Poly[], ops: PxOpening[], lines: Array<[Pt, Pt]>, labels: PxLabel[]) {
+export function analyse(walls: Poly[], ops: PxOpening[], strokes: Stroke[], labels: PxLabel[]) {
   const g = Grid.around([...walls, ...ops.map(o => [[o.box[0], o.box[1]], [o.box[2], o.box[3]]] as Poly), ...labels.map(l => [[l.box[0], l.box[1]], [l.box[2], l.box[3]]] as Poly)], CELL, 120)
   const { w, h } = g
   // real boundaries: walls 1, glazing 3, doors 4
@@ -185,6 +189,11 @@ export function analyse(walls: Poly[], ops: PxOpening[], lines: Array<[Pt, Pt]>,
     rectFill(b, o.kind === 'door' ? 4 : 3)
     for (let k = 0; k < w * h; k++) if (before.a[k] === 1) g.a[k] = 1          // never paint over a wall
   }
+  // stairs 6 and railings 5 are boundaries too: you don't walk through a railing, and a stair is neither room
+  const stairs = findStairs(strokes), railings = findRailings(strokes)
+  const paint = (b: Box, v: number, grow = 0) => { const before = g.like(); before.a.set(g.a); rectFill([b[0] - grow, b[1] - grow, b[2] + grow, b[3] + grow], v); for (let k = 0; k < w * h; k++) if (before.a[k]) g.a[k] = before.a[k] }
+  for (const st of stairs) paint(st.box, 6)
+  for (const r of railings) paint(r, 5, 2)
   // implied walls 2: a wall tip carried straight on to the next boundary
   const imp = g.like()
   for (const p of walls) for (const b of extensions(p, g)) imp.fill(b)
@@ -192,7 +201,15 @@ export function analyse(walls: Poly[], ops: PxOpening[], lines: Array<[Pt, Pt]>,
 
   // long drawn lines: soft hints for where an open space divides
   const soft = new Uint8Array(w * h)
-  for (const [a, b] of lines) { const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / (CELL * .7)); for (let t = 0; t <= n; t++) { const k = (Math.floor((a[1] + (b[1] - a[1]) * t / n - g.oy) / CELL)) * w + Math.floor((a[0] + (b[0] - a[0]) * t / n - g.ox) / CELL); if (k >= 0 && k < w * h) soft[k] = 1 } }
+  for (const st of strokes) {
+    if (st.curved) continue
+    for (let i = 0; i + 1 < st.pts.length; i++) {
+      const a = st.pts[i], b = st.pts[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1])
+      if (len < 75) continue
+      const n = Math.ceil(len / (CELL * .7))
+      for (let t = 0; t <= n; t++) { const k = (Math.floor((a[1] + (b[1] - a[1]) * t / n - g.oy) / CELL)) * w + Math.floor((a[0] + (b[0] - a[0]) * t / n - g.ox) / CELL); if (k >= 0 && k < w * h) soft[k] = 1 }
+    }
+  }
 
   // outside: free space reachable from the border without crossing anything (not even an implied wall)
   const fine = components(g, k => g.a[k] === 0)
@@ -216,7 +233,7 @@ export function analyse(walls: Poly[], ops: PxOpening[], lines: Array<[Pt, Pt]>,
   const rooms: Array<PlanRoom & { cells: number }> = []
   const growIn = (seeds: number[], ids: number[], allowed: (k: number) => boolean, reach: number) => grow(g, soft, seeds, ids, owner, allowed, reach)
   const addRoom = (name: string, from: PlanRoom['from'], outdoor: boolean, at?: Pt) => { rooms.push({ name, rect: [0, 0, 0, 0], area: 0, outdoor, from, at, tiles: [], cells: 0 }); return rooms.length - 1 }
-  const notes: PlanNote[] = labels.filter(l => l.kind !== 'room' && l.kind !== 'dimension').map(l => ({ text: l.text, at: centre(l.box), kind: l.kind === 'fixture' ? 'fixture' as const : 'note' as const }))
+  const notes: PlanNote[] = labels.filter(l => l.kind !== 'room' && l.kind !== 'dimension').map(l => ({ text: l.text, at: centre(l.box), box: l.box, kind: l.kind === 'fixture' ? 'fixture' as const : 'note' as const }))
 
   // regions with names: one name → the whole region; several → divide, preferring implied walls as the dividing lines
   const byRegion = new Map<number, typeof roomLabels>()
@@ -224,12 +241,12 @@ export function analyse(walls: Poly[], ops: PxOpening[], lines: Array<[Pt, Pt]>,
   for (const [region, ls] of byRegion) {
     // a much smaller name inside a room (a pantry cupboard in a kitchen, a nook) labels a corner of it, not a room
     const big = Math.max(...ls.map(l => l.size)), main = ls.filter(l => l.size >= .5 * big)
-    for (const l of ls) if (!main.includes(l)) notes.push({ text: l.text, at: l.c, kind: 'room' })
+    for (const l of ls) if (!main.includes(l)) notes.push({ text: l.text, at: l.c, box: l.box, kind: 'room' })
     // the same name written twice in one space (a long living room) is one room
     const names = [...new Set(main.map(l => l.text))]
     if (names.length === 1) { const id = addRoom(names[0], 'label', OUTDOOR.test(names[0]), main[0].c); for (let k = 0; k < w * h; k++) if (closed.lab.a[k] === region) owner[k] = id; continue }
     const idOf = new Map(names.map(n => [n, addRoom(n, 'split', OUTDOOR.test(n), main.find(l => l.text === n)!.c)]))
-    growIn(main.map(l => l.cell), main.map(l => idOf.get(l.text)!), k => closed.lab.a[k] === region, Infinity)
+    divide(g, soft, owner, k => closed.lab.a[k] === region, main.map(l => ({ cell: l.cell, id: idOf.get(l.text)! })))
   }
   // closed regions nobody named
   const unnamed = new Map<number, number>()
@@ -285,7 +302,7 @@ export function analyse(walls: Poly[], ops: PxOpening[], lines: Array<[Pt, Pt]>,
   for (let again = true; again;) { again = false; for (const o of openings) if (o.kind === 'window' && o.axis && openings.some(d => d.kind === 'glass-door' && d.axis !== o.axis && touch(d.rect, o.rect))) { o.kind = 'glass-door'; o.sill = 0; o.head = 2.5; again = true } }
 
   const out = rooms.filter(r => r.cells > 0).map(({ cells, ...r }) => r).sort((a, b) => Number(a.outdoor) - Number(b.outdoor) || a.rect[1] - b.rect[1] || a.rect[0] - b.rect[0])
-  return { rooms: out, openings, notes, debug: { g, owner, outside } }
+  return { rooms: out, openings, notes, stairs, railings, debug: { g, owner, outside } }
 }
 
 /** Nearest free cell to `k` (labels are sometimes written across a furniture or wall line). */
@@ -297,6 +314,46 @@ function nearestFree(g: Grid, k: number): number {
     if (i >= 0 && j >= 0 && i < w && j < h && g.a[j * w + i] === 0) return j * w + i
   }
   return k
+}
+
+/**
+ * Divide one closed region between several names with straight cuts, the way a plan reads: each cut runs along x or y,
+ * separates the names into two groups, and is the one crossing the least open floor (it lands on narrowings; implied
+ * walls are free to cut along, drawn lines cheap). Repeats inside each part until every part has one name.
+ */
+function divide(g: Grid, soft: Uint8Array, owner: Int32Array, inRegion: (k: number) => boolean, seeds: Array<{ cell: number; id: number }>) {
+  const { w, h } = g
+  const cells: number[] = []; for (let k = 0; k < w * h; k++) if (inRegion(k) && (g.a[k] === 0 || g.a[k] === 2)) cells.push(k)
+  const weight = (k: number) => (g.a[k] === 2 ? 0 : soft[k] ? .35 : 1)
+  const rec = (part: number[], ss: Array<{ cell: number; id: number }>) => {
+    const ids = [...new Set(ss.map(s => s.id))]
+    if (ids.length <= 1) { for (const k of part) owner[k] = ids[0] ?? -1; return }
+    let best: { axis: 0 | 1; c: number; cost: number; mid: number } | null = null
+    for (const axis of [0, 1] as const) {
+      const at = (k: number) => (axis === 0 ? k % w : Math.floor(k / w))
+      // cost of cutting at each coordinate = open floor on that line
+      const cost = new Map<number, number>(); for (const k of part) cost.set(at(k), (cost.get(at(k)) ?? 0) + weight(k))
+      // candidate cuts lie strictly between two names that differ
+      const pos = ss.map(s => ({ v: at(s.cell), id: s.id })).sort((a, b) => a.v - b.v)
+      for (let i = 0; i + 1 < pos.length; i++) {
+        const lo = pos[i].v, hi = pos[i + 1].v
+        if (hi - lo < 16) continue
+        // a cut here must not put the same name on both sides
+        const left = new Set(pos.slice(0, i + 1).map(p => p.id)), right = new Set(pos.slice(i + 1).map(p => p.id))
+        if ([...left].some(id => right.has(id))) continue
+        const mid = (lo + hi) / 2
+        for (let c = lo + 8; c <= hi - 8; c++) {
+          const v = cost.get(c) ?? 0
+          if (!best || v < best.cost - 2 || (Math.abs(v - best.cost) <= 2 && Math.abs(c - mid) < Math.abs(best.c - best.mid))) best = { axis, c, cost: v, mid }
+        }
+      }
+    }
+    if (!best) { for (const k of part) owner[k] = ids[0]; return }           // names on top of each other: leave as one
+    const at = (k: number) => (best!.axis === 0 ? k % w : Math.floor(k / w))
+    rec(part.filter(k => at(k) < best!.c), ss.filter(s => at(s.cell) < best!.c))
+    rec(part.filter(k => at(k) >= best!.c), ss.filter(s => at(s.cell) >= best!.c))
+  }
+  rec(cells, seeds.filter(s => s.cell >= 0))
 }
 
 /** Dijkstra from several seeds over cells where `allowed`; implied walls (2) are expensive to cross, so borders settle on them. */
@@ -334,7 +391,7 @@ function extensions(p: Poly, g: Grid): Poly[] {
     if (!back(prev, a) || !back(next, b)) continue
     const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2
     let hit = -1
-    for (let t = g.cell * 1.5; t <= EXTEND; t += g.cell) { const v = g.get(Math.floor((mx + nx * t - g.ox) / g.cell), Math.floor((my + ny * t - g.oy) / g.cell)); if (v === 1 || v === 3 || v === 4) { hit = t; break } }
+    for (let t = g.cell * 1.5; t <= EXTEND; t += g.cell) { const v = g.get(Math.floor((mx + nx * t - g.ox) / g.cell), Math.floor((my + ny * t - g.oy) / g.cell)); if (v === 1 || v >= 3) { hit = t; break } }
     if (hit < g.cell * 3) continue                                     // nothing ahead, or the tip already meets a door / window
     out.push([a, b, [b[0] + nx * hit, b[1] + ny * hit], [a[0] + nx * hit, a[1] + ny * hit]])
   }

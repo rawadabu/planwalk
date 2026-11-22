@@ -110,6 +110,14 @@ export default class Kit {
     }
   }
   rug({ r }) { this.b.box(...r, 0, .006, 'rug', .002) }
+  steps({ treads, rise }) {
+    const b = this.b
+    treads.forEach((r, i) => {
+      const top = (i + 1) * rise
+      b.box(...r, top - .05, top, 'oak', .004)                      // tread
+      b.box(r[0] + 2, r[1] + 2, r[2] - 2, r[3] - 2, Math.max(0, top - rise - .05), top - .05, 'lacquer')   // closed riser block
+    })
+  }
   slot({ r: [x1, y1, x2, y2] }) {
     const b = this.b, h = (x2 - x1) > (y2 - y1)
     b.box(x1, y1, x2, y2, H - .012, H, 'metal')

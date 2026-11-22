@@ -1,10 +1,13 @@
 import type { House, Floor, Item, StoreyId } from '@planwalk/house'
 import { PX_PER_M, type Plan, type PlanStorey } from './sheet'
 import type { Poly } from './plan'
+import { furnish, paved } from './content'
 
 /** plan@1 → house@1 (what the viewer walks through) plus one minimap SVG per storey. */
 export interface HouseOptions { id?: string; title?: string; file?: string }
-const H = 2.8
+const H = 2.8, STOREY = 3.05
+type Box4 = [number, number, number, number]
+const overlap = (a: number[], b: number[], m = 0) => Math.min(a[2], b[2]) - Math.max(a[0], b[0]) > m && Math.min(a[3], b[3]) - Math.max(a[1], b[1]) > m
 
 export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; maps: Record<string, string>; warnings: string[] } {
   const warnings = [...plan.warnings]
@@ -33,6 +36,22 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
     // the roof covers every indoor space of the top storey, the double-height one included
     if (s === top) for (const r of [...indoor, ...st.rooms.filter(r => r.void)]) for (const t of r.tiles) items.push({ k: 'box', f: s, layer: 'roof', r: [t[0] - 12, t[1] - 12, t[2] + 12, t[3] + 12], y: [H, H + .3], m: 'ceil' })
     for (const o of st.openings) if (o.kind === 'door') items.push({ k: 'opening', f: s, r: o.rect, head: o.head })
+    for (const t of furnish(st)) items.push({ ...t, f: s } as Item)
+    for (const b of paved(st)) items.push({ k: 'box', f: s, layer: 'outdoor', r: b.map(Math.round) as Box4, y: s > 0 ? [-.2, 0] : [-.04, .005], m: 'deck' })
+    // railings: glass with a metal rail
+    for (const r of st.railings) { const b: [number, number, number, number] = [Math.round(r[0] - 1), Math.round(r[1] - 1), Math.round(r[2] + 1), Math.round(r[3] + 1)]; items.push({ k: 'box', f: s, layer: 'int', r: b, y: [.05, 1], m: 'railGlass' }, { k: 'box', f: s, layer: 'int', r: b, y: [1, 1.04], m: 'metal' }) }
+    // the stair up from this storey: drawn complete on the storey above; the bottom steps may only show here
+    const up = plan.storeys.find(p => p.storey === s + 1)
+    const here = st.stairs[0], above = up?.stairs.find(a => here && overlap(a.box, here.box))
+    if (here && above) {
+      const lead: Box4[] = []
+      if (here.ordered) for (const t of here.treads) { if (above.treads.some(a => overlap(a, t, 4))) break; lead.push(t) }
+      const treads = [...lead, ...above.treads].map(t => t.map(Math.round) as Box4)
+      items.push({ k: 'steps', f: s, layer: 'int', treads, rise: STOREY / (treads.length + 1) })
+      if (!above.ordered) warnings.push(`storey ${s}: no up-arrow on the stair; step order is a guess`)
+    }
+    // under the lowest stair there is floor
+    if (here && s === Math.min(...plan.storeys.map(p => p.storey))) items.push({ k: 'box', f: s, layer: 'arch', r: here.box.map(Math.round) as Box4, y: [-.02, 0], m: 'floor' })
   }
   if (plan.storeys.some(s => s.storey < 0 || s.storey > 2)) warnings.push('storeys outside ground…second are not built yet')
   const house: House = {

@@ -44,6 +44,8 @@ export const Item = z.discriminatedUnion('k', [
   z.object({ k: z.literal('rings'), ...base, c: Pt }),
   z.object({ k: z.literal('fireplace'), ...base, r: Rect }),
   z.object({ k: z.literal('stairU'), ...base }),
+  // a stair as the plan draws it: treads in climbing order, each `rise` metres above the last (first tread = 1 × rise)
+  z.object({ k: z.literal('steps'), ...base, treads: z.array(Rect).min(1), rise: z.number().positive() }),
   z.object({ k: z.literal('model'), ...base, name: z.string(), r: Rect, h: z.number(), rot: z.number(), uniform: z.boolean().optional(), y: z.number().optional() }),
 ])
 
