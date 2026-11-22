@@ -31,6 +31,8 @@ export const Item = z.discriminatedUnion('k', [
   z.object({ k: z.literal('tall'), ...base, r: Rect, h: z.number().optional() }),
   z.object({ k: z.literal('bed'), ...base, r: Rect, head: z.enum(['x1', 'x2', 'y1', 'y2']) }),
   z.object({ k: z.literal('rug'), ...base, r: Rect }),
+  // kitchen designer output (one module of a run); fronts face `dir`
+  z.object({ k: z.literal('cabinet'), ...base, r: Rect, kind: z.enum(['drawers', 'doors', 'sink', 'hob', 'dishwasher', 'corner', 'fridge', 'oven', 'pantry', 'filler', 'upper', 'hood']), dir: z.enum(['x+', 'x-', 'y+', 'y-']), n: z.number().int().optional() }),
   z.object({ k: z.literal('slot'), ...base, r: Rect }),
   z.object({ k: z.literal('slats'), ...base, r: Rect, h: z.number() }),
   z.object({ k: z.literal('shelving'), ...base, r: Rect }),

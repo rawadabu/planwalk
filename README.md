@@ -98,3 +98,10 @@ Targets are `<part>@<scope>` — parts `floor | walls | ceiling | joinery | work
 A finish catalogue (paint, wood, lacquer, tile, stone, concrete, aluminium) with allowed categories per part, build rules (errors block saving, warnings e.g. wood floor in a bathroom), and `DesignDoc` with undo/redo. `npm test -w @planwalk/design`.
 API: `GET/POST /api/houses/:id/designs`, `GET/PUT/DELETE /api/designs/:id` (PUT sends the version it edited → 409 on conflict), `GET /api/designs/:id/revisions`, `POST /api/designs/:id/restore`. Every save is kept as a revision.
 Roles: owner/admin/architect create, edit, delete · sales create, edit · viewer reads. Engine: `viewer.applyDesign(storeyLooks(design))`.
+
+## Kitchen designer (sheet A-05)
+
+`packages/design/src/kitchen.ts`: a run is a straight line of modules along a wall, stored in the design as an edit (`run:f1.0`), so undo/redo, saving and versions apply.
+`runsFromPlan` finds the runs the plan draws in the kitchen (length from the drawing), `autoFill` fills a run exactly with standard widths (fridge/oven/pantry 60, hob, sink, dishwasher, drawers 30–120, filler ≤ 15 cm),
+`checkRun` applies fitter's rules (length, valid widths, hob vs tall unit and sink, dishwasher next to the sink, walkway ≥ 90 cm to the island), `applyRun` turns modules into `cabinet` items + worktop for the engine.
+Sizes: base 87 cm + 3 cm worktop, depth 60, tall 220, wall units 70 cm high from 145 cm, never in front of a window.

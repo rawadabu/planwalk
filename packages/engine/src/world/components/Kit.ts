@@ -47,6 +47,68 @@ export default class Kit {
       b.box(...(lo ? [x1 + 6, y1 + 6, x2 - 6, y1 + 26] : [x1 + 6, y2 - 26, x2 - 6, y2 - 6]), .52, .66, 'linen', .05)
     }
   }
+  // ── kitchen designer modules (sheet A-05). Back on the wall, front towards `dir`; heights in metres. ──
+  cabinet({ r, kind, dir }) {
+    const b = this.b, alongY = dir[0] === 'x', plus = dir[1] === '+'
+    const [a0, a1] = alongY ? [r[1], r[3]] : [r[0], r[2]]
+    const back = alongY ? (plus ? r[0] : r[2]) : (plus ? r[1] : r[3])
+    const D = alongY ? r[2] - r[0] : r[3] - r[1]
+    // a box from (along p0..p1, depth d0..d1 measured from the back) and heights y0..y1
+    const box = (p0, p1, d0, d1, y0, y1, key, rad = 0) => {
+      const c0 = plus ? back + d0 : back - d1, c1 = plus ? back + d1 : back - d0
+      alongY ? b.box(c0, p0, c1, p1, y0, y1, key, rad) : b.box(p0, c0, p1, c1, y0, y1, key, rad)
+    }
+    const G = .3, w = a1 - a0, am = (a0 + a1) / 2, FT = 1.9          // 3 mm gaps, 19 mm fronts (px)
+    const front = (p0, p1, y0, y1, handle = true) => {
+      box(p0 + G, p1 - G, D - FT, D, y0 + .0015, y1 - .0015, 'walnut')
+      if (handle) box(p0 + (p1 - p0) * .32, p1 - (p1 - p0) * .32, D, D + .8, y1 - .045, y1 - .03, 'metal')
+    }
+    const pair = (y0, y1) => { if (w >= 58) { front(a0, am, y0, y1); front(am, a1, y0, y1) } else front(a0, a1, y0, y1) }
+    const BASE = .87, TALL = 2.2
+    if (kind === 'upper' || kind === 'hood') {
+      if (kind === 'hood') {
+        box(a0 + 3, a1 - 3, 0, Math.min(D * 1.4, 50), 1.62, 1.7, 'steel', .004)
+        box(am - 12, am + 12, 0, 24, 1.7, H, 'steel')
+        return
+      }
+      box(a0 + G, a1 - G, 0, D - FT, 1.45, 2.15, 'lacquer')
+      if (w >= 58) { box(a0 + G, am - G, D - FT, D, 1.4515, 2.1485, 'walnut'); box(am + G, a1 - G, D - FT, D, 1.4515, 2.1485, 'walnut') }
+      else box(a0 + G, a1 - G, D - FT, D, 1.4515, 2.1485, 'walnut')
+      return
+    }
+    const tall = kind === 'fridge' || kind === 'oven' || kind === 'pantry'
+    box(a0 + G, a1 - G, 0, D - 6, 0, .1, 'metal')                                        // recessed plinth
+    box(a0 + G, a1 - G, 0, D - FT, .1, tall ? TALL : BASE, 'lacquer')                     // carcass
+    switch (kind) {
+      case 'drawers': case 'hob':
+        front(a0, a1, .1, .32); front(a0, a1, .32, .58); front(a0, a1, .58, BASE)
+        if (kind === 'hob') {
+          box(a0 + 5, a1 - 5, 7, D - 8, BASE + .03, BASE + .036, 'blackGlass')
+          for (const [u, v] of [[.3, .32], [.7, .32], [.3, .68], [.7, .68]]) box(a0 + 5 + (w - 10) * u - 5, a0 + 5 + (w - 10) * u + 5, 7 + (D - 15) * v - 5, 7 + (D - 15) * v + 5, BASE + .036, BASE + .037, 'metal')
+        }
+        break
+      case 'sink': {
+        pair(.1, BASE)
+        const sw = Math.min(w - 12, 72)
+        box(am - sw / 2, am + sw / 2, 10, D - 12, BASE + .01, BASE + .032, 'steel', .01)
+        box(am - 1.2, am + 1.2, 4, 6.5, BASE + .03, BASE + .33, 'steel')                  // faucet
+        box(am - 1, am + 1, 4, 20, BASE + .31, BASE + .335, 'steel')
+        break
+      }
+      case 'dishwasher': front(a0, a1, .1, BASE); break
+      case 'filler': box(a0, a1, D - FT, D, .1, BASE, 'walnut'); break
+      case 'doors': case 'corner': pair(.1, BASE); break
+      case 'fridge': pair(.1, 1.55); pair(1.55, TALL); break
+      case 'oven':
+        front(a0, a1, .1, .5)
+        box(a0 + G + 1, a1 - G - 1, D - FT, D + .3, .52, 1.12, 'blackGlass')
+        box(a0 + w * .2, a1 - w * .2, D + .3, D + 1, 1.07, 1.09, 'steel')
+        box(a0 + G + 1, a1 - G - 1, D - FT, D + .3, 1.14, 1.5, 'blackGlass')
+        front(a0, a1, 1.52, TALL)
+        break
+      case 'pantry': pair(.1, 1.4); pair(1.4, TALL); break
+    }
+  }
   rug({ r }) { this.b.box(...r, 0, .006, 'rug', .002) }
   slot({ r: [x1, y1, x2, y2] }) {
     const b = this.b, h = (x2 - x1) > (y2 - y1)

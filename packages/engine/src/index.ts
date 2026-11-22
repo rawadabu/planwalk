@@ -104,6 +104,7 @@ export function createViewer(options: ViewerOptions): Viewer {
     setHeadBob: on => { exp.state.headBob = on },
     climb: dir => exp.player.startClimb(dir),
     teleport: (x, y) => exp.player.teleportTo(x, y),
+    goTo: (floor, x, y, yaw) => { if (exp.state.mode !== 'walk') exp.player.setMode('walk'); exp.player.setFloor(floor, { x, y, yaw }) },
     setJoystick: (x, y) => { exp.player.jv = { x, y } },
     setMeasuring: on => exp.measure.setActive(on),
     resetView: () => { const h = exp.world.house; if (!h) return; exp.player.setFloor(1, h.floors[1].start); if (exp.state.mode !== 'walk') exp.player.setMode('walk') },

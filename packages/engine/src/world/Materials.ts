@@ -65,6 +65,7 @@ export default class Materials {
       rug: std({ map: t.rugDiff, normalMap: t.rugNor, color: 0xe8dfd2, roughness: 1 }),
       metal: std({ color: 0x1c1d1f, roughness: .38, metalness: .7 }),
       ceramic: std({ color: 0xfbfbf9, roughness: .12 }),
+      steel: std({ color: 0xc6c9cc, roughness: .28, metalness: .85 }),
       blackGlass: std({ color: 0x0c0c0d, roughness: .08, metalness: .2 }),
       plant: std({ color: 0x55703e, roughness: .8 }),
       soil: std({ color: 0x3b2e24, roughness: 1 }),

@@ -17,12 +17,15 @@ const Storey = z.union([z.literal(0), z.literal(1), z.literal(2)])
 export const EditSchema = z.discriminatedUnion('k', [
   z.object({ k: z.literal('window'), floor: Storey, index: z.number().int().min(0), width: z.number().optional(), sill: z.number().optional(), head: z.number().optional(), type: z.enum(['sliding', 'hinged', 'fixed']).optional() }),
   z.object({ k: z.literal('wall'), floor: Storey, axis: z.enum(['x', 'y']), a: z.number(), b: z.number(), lo: z.number(), hi: z.number(), by: z.number() }),
+  z.object({ k: z.literal('run'), floor: Storey, id: z.string().max(20), x: z.number(), y: z.number(), axis: z.enum(['x', 'y']), length: z.number().positive().max(2000), depth: z.number().min(30).max(80),
+    facing: z.union([z.literal(1), z.literal(-1)]), uppers: z.boolean().default(false),
+    modules: z.array(z.object({ t: z.enum(['drawers', 'doors', 'sink', 'hob', 'dishwasher', 'corner', 'fridge', 'oven', 'pantry', 'filler']), w: z.number().positive().max(200) })).max(40) }),
 ])
 export const Design = z.object({
   format: z.literal('design@1'),
   finishes: z.record(z.string().regex(TARGET, 'Unknown target'), z.string().min(1).max(64)).default({}),
   /** geometry edits keyed by editKey(): window:f1.3, wall:f2.x545.703 */
-  edits: z.record(z.string().regex(/^(window|wall):f[0-2]\.[\w.-]{1,40}$/), EditSchema).default({}),
+  edits: z.record(z.string().regex(/^(window|wall|run):f[0-2]\.[\w.-]{1,40}$/), EditSchema).default({}),
   note: z.string().max(2000).optional(),
 })
 export type Design = z.infer<typeof Design>

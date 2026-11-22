@@ -155,3 +155,30 @@
 .drawer .stepper .unit{font-size:11px;color:var(--muted);padding-inline-end:4px}
 .viewer .drawer .btn.pillbtn{padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-size:12px}
 .viewer .drawer .btn.pillbtn[aria-checked="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+
+/* kitchen designer (A-05) */
+.drawer.kitchen{width:min(380px,calc(100% - 28px))}
+.drawer .krow{display:flex;justify-content:space-between;align-items:center;font-size:13px;gap:8px}
+.drawer .elev{width:100%;height:auto;background:var(--glass-strong);border:1px solid var(--line);border-radius:10px;direction:ltr}
+.drawer .elev .m rect{fill:color-mix(in srgb,#8a5a3c 70%,var(--glass-strong));stroke:var(--fg);stroke-width:.6;cursor:pointer}
+.drawer .elev .m.t-filler rect{fill:none;stroke-dasharray:2 2}
+.drawer .elev .m.on rect:first-child{fill:var(--accent)}
+.drawer .elev .m rect.dev{fill:#c6c9cc;stroke:none}.drawer .elev .m rect.dev.dark{fill:#111}
+.drawer .elev .m rect.hood{fill:#c6c9cc}
+.drawer .elev .top{fill:#e9e6e0;stroke:var(--fg);stroke-width:.5}
+.drawer .elev .win{fill:color-mix(in srgb,var(--accent) 15%,transparent);stroke:var(--accent);stroke-dasharray:3 2;stroke-width:.6}
+.drawer .elev .floor{stroke:var(--fg);stroke-width:1}
+.drawer .elev text{font:9px var(--font);fill:var(--muted)}
+.drawer .used{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}.drawer .used.over{color:#c2412d}
+.drawer .mods{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.drawer .mods li{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:8px;border:1px solid transparent;font-size:13px}
+.drawer .mods li.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.drawer .mods .n{width:18px;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.drawer .mods select,.drawer .mods .fw{font:inherit;font-size:13px;color:var(--fg);background:var(--glass-strong);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+.drawer .mods .fw{width:52px;direction:ltr}
+.drawer .mods .ftype{min-width:70px}
+.drawer .mods .unit{font-size:11px;color:var(--muted)}
+.drawer .mods .acts{margin-inline-start:auto;display:flex}
+.viewer .drawer .mods .acts .btn{padding:4px 7px;font-size:13px;color:var(--muted)}
+.drawer .check{display:flex;gap:8px;align-items:center;font-size:13px}
+.drawer > *{flex-shrink:0}

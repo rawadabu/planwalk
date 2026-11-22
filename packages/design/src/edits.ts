@@ -1,4 +1,5 @@
 import type { House } from '@planwalk/house'
+import { applyRun, checkRun, type Run } from './kitchen'
 
 /**
  * Geometry edits (sheet A-04b). A design never touches the architect's base: these edits are applied to a copy,
@@ -10,7 +11,7 @@ import type { House } from '@planwalk/house'
 export type WindowType = 'sliding' | 'hinged' | 'fixed'
 export interface WindowEdit { k: 'window'; floor: 0 | 1 | 2; index: number; width?: number; sill?: number; head?: number; type?: WindowType }
 export interface WallEdit { k: 'wall'; floor: 0 | 1 | 2; axis: 'x' | 'y'; a: number; b: number; lo: number; hi: number; by: number }
-export type Edit = WindowEdit | WallEdit
+export type Edit = WindowEdit | WallEdit | Run
 export interface EditIssue { key: string; level: 'error' | 'warning'; message: string }
 
 export const PX_PER_CM = 437 / 440            // plan px per cm (437 px = 440 cm on the twin-house plan)
@@ -18,7 +19,7 @@ const H = 2.8, TOL = 1.6
 export const MIN_WINDOW_CM = 40, MAX_MOVE_CM = 150, MIN_ROOM_CM = 120
 
 /** Stable key per edited element: one edit per window, one per partition. */
-export const editKey = (e: Edit) => e.k === 'window' ? `window:f${e.floor}.${e.index}` : `wall:f${e.floor}.${e.axis}${Math.round(e.a)}.${Math.round(e.lo)}`
+export const editKey = (e: Edit) => e.k === 'window' ? `window:f${e.floor}.${e.index}` : e.k === 'run' ? `run:f${e.floor}.${e.id}` : `wall:f${e.floor}.${e.axis}${Math.round(e.a)}.${Math.round(e.lo)}`
 
 /** A window as the UI shows it (cm and m), from a house. */
 export function windowInfo(house: House, floor: 0 | 1 | 2, index: number) {
@@ -62,12 +63,18 @@ const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 export function applyEdits(base: House, edits: Record<string, Edit>): { house: House; issues: EditIssue[]; windowTypes: Record<string, WindowType> } {
   const house = clone(base), issues: EditIssue[] = [], windowTypes: Record<string, WindowType> = {}
   // walls first (they can carry windows with them), then windows
-  const list = Object.entries(edits).sort(([, p], [, q]) => (p.k === q.k ? 0 : p.k === 'wall' ? -1 : 1))
+  const order = { wall: 0, window: 1, run: 2 }
+  const list = Object.entries(edits).sort(([, p], [, q]) => order[p.k] - order[q.k])
   for (const [key, e] of list) {
     const err = (message: string) => issues.push({ key, level: 'error', message })
     const fl = house.floors[e.floor]
     if (!fl) { err('Unknown storey'); continue }
 
+    if (e.k === 'run') {
+      applyRun(house, e)
+      for (const i of checkRun(e, house)) issues.push({ key, level: i.level, message: `Kitchen: ${i.message}` })
+      continue
+    }
     if (e.k === 'window') {
       const g = fl.glass[e.index]; if (!g) { err('That window is not in this house'); continue }
       let [x1, y1, x2, y2, sill, head] = g

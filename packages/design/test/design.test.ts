@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseHouse } from '@planwalk/house'
-import { applyEdits, editKey, findPartition, windowInfo, PX_PER_CM, DesignDoc, emptyDesign, parseDesign, parseTarget, resolveFinish, storeyLooks, roomLooks, targetKey, validate, finishesFor, BASE, PART_IDS, finish } from '../src/index'
+import { autoFill, checkRun, runsFromPlan, runUsed, runFootprint, windowsBehind, applyEdits, editKey, findPartition, windowInfo, PX_PER_CM, DesignDoc, emptyDesign, parseDesign, parseTarget, resolveFinish, storeyLooks, roomLooks, targetKey, validate, finishesFor, BASE, PART_IDS, finish } from '../src/index'
 
 const house = parseHouse(JSON.parse(readFileSync(new URL('../../../storage/houses/twin-a/house.json', import.meta.url), 'utf8')))
 
@@ -153,4 +153,58 @@ test('partition with faces of different lengths moves as one wall', () => {
   assert.equal(out.issues.filter(i => i.level === 'error').length, 0, JSON.stringify(out.issues))
   const kids = out.house.floors[2].rooms[2], corridor = out.house.floors[2].rooms[3]
   assert.ok(kids[2] > house.floors[2].rooms[2][2] && corridor[4] > house.floors[2].rooms[3][4], 'kids room shrinks, corridor grows')
+})
+
+test('kitchen: the run is found in the plan and filled exactly', () => {
+  const kitchen = house.floors[1].rooms.findIndex(r => r[0] === 'מטבח')
+  const runs = runsFromPlan(house, 1, kitchen)
+  assert.equal(runs.length, 1)
+  const r = runs[0]
+  assert.equal(r.axis, 'y'); assert.equal(r.facing, 1)
+  assert.ok(Math.abs(r.length - 458) <= 2, `length ${r.length}`)
+  assert.equal(runUsed(r), r.length)
+  assert.equal(r.modules[0].t, 'fridge'); assert.equal(r.modules.at(-1)!.t, 'oven')
+  assert.ok(r.modules.some(m => m.t === 'sink') && r.modules.some(m => m.t === 'hob'))
+  assert.deepEqual(checkRun(r, house).filter(i => i.level === 'error'), [])
+  assert.ok(windowsBehind(house, r).length >= 1, 'the kitchen window is behind the run')
+})
+
+test('kitchen: autofill for many lengths fits exactly with standard widths', () => {
+  for (let L = 240; L <= 600; L += 7) {
+    const mods = autoFill(L, { tallStart: ['fridge'], tallEnd: [] })
+    const used = mods.reduce((a, m) => a + m.w, 0)
+    assert.ok(used <= L && L - used <= 15, `L=${L} used=${used}`)
+  }
+})
+
+test('kitchen: rules catch overflow, bad widths, hob next to tall, lonely dishwasher', () => {
+  const base = runsFromPlan(house, 1, 3)[0]
+  const bad = { ...base, modules: [{ t: 'fridge' as const, w: 60 }, { t: 'hob' as const, w: 75 }, { t: 'dishwasher' as const, w: 60 }, { t: 'drawers' as const, w: 400 }] }
+  const msgs = checkRun(bad, house).map(i => i.level + ':' + i.message).join(' | ')
+  assert.match(msgs, /error:The cabinets are/)
+  assert.match(msgs, /doesn't come 75 cm/)
+  assert.match(msgs, /tall unit/)
+  assert.match(msgs, /next to the sink/)
+})
+
+test('kitchen: the run replaces the plan cabinets in the effective house', () => {
+  const run = { ...runsFromPlan(house, 1, 3)[0], uppers: true }
+  const { house: h, issues } = applyEdits(house, { 'run:f1.0': run })
+  assert.equal(issues.filter(i => i.level === 'error').length, 0, JSON.stringify(issues))
+  const fp = runFootprint(run)
+  const inside = (r: number[]) => r[0] >= fp[0] - 6 && r[2] <= fp[2] + 6 && r[1] >= fp[1] - 6 && r[3] <= fp[3] + 6
+  assert.equal(h.items.filter(i => i.f === 1 && (i.k === 'base' || i.k === 'tall') && inside((i as any).r)).length, 0)
+  const cabs = h.items.filter(i => i.k === 'cabinet')
+  assert.equal(cabs.filter(c => (c as any).kind !== 'upper' && (c as any).kind !== 'hood').length, run.modules.length)
+  assert.ok(cabs.some(c => (c as any).kind === 'upper'), 'wall units where there is no window')
+  assert.ok(h.items.some(i => i.k === 'box' && (i as any).m === 'quartz' && inside((i as any).r)), 'a worktop')
+})
+
+test('kitchen: walkway is measured to the island, not to chairs', () => {
+  const run = runsFromPlan(house, 1, 3)[0]
+  const { house: h } = applyEdits(house, { 'run:f1.0': run })
+  assert.equal(checkRun(run, h).filter(i => /walk/.test(i.message)).length, 0)
+  const deep = { ...run, depth: 60 }
+  const near = { ...deep, x: deep.x + 40 }                                  // pushed 40 px towards the island
+  assert.equal(checkRun(near, h).filter(i => /walk/.test(i.message)).length, 1)
 })

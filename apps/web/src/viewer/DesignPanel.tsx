@@ -15,6 +15,12 @@ const FROM_LABEL = { base: 'בסיס', all: 'כל הבית', floor: 'הקומה'
 /** What design mode keeps while the page is open (the panel can close and reopen). */
 export interface DesignSession { doc: DesignDoc; active: { id: string; name: string; version: number } | null; shownEdits: string }
 export const newDesignSession = (): DesignSession => ({ doc: new DesignDoc(emptyDesign()), active: null, shownEdits: '{}' })
+/** Draw a design: rebuild the house when its geometry edits changed, then apply finishes. Shared by the design and kitchen panels. */
+export function renderDesign(viewer: Viewer, base: House, session: DesignSession, onHouse: (h: House) => void, d: Design) {
+  const key = JSON.stringify(d.edits)
+  if (key !== session.shownEdits) { session.shownEdits = key; const eff = applyEdits(base, d.edits).house; viewer.setHouse(eff); onHouse(eff) }
+  viewer.applyDesign(storeyLooks(d), roomLooks(d))
+}
 
 export function DesignPanel({ viewer, house, houseId, meta, floor, onClose, onHouse, session }: { viewer: Viewer; house: House; houseId: string; meta: HouseMeta; floor: StoreyId; onClose: () => void; onHouse: (h: House) => void; session: DesignSession }) {
   const docRef = useRef(session.doc)
@@ -32,11 +38,7 @@ export function DesignPanel({ viewer, house, houseId, meta, floor, onClose, onHo
   const [newName, setNewName] = useState('')
 
   // geometry edits → an effective house (the base `house` is never changed); rebuilt in 3D only when edits change
-  const show = useCallback((d: Design) => {
-    const key = JSON.stringify(d.edits)
-    if (key !== session.shownEdits) { session.shownEdits = key; const eff = applyEdits(house, d.edits).house; viewer.setHouse(eff); onHouse(eff) }
-    viewer.applyDesign(storeyLooks(d), roomLooks(d))
-  }, [viewer, house, onHouse, session])
+  const show = useCallback((d: Design) => renderDesign(viewer, house, session, onHouse, d), [viewer, house, onHouse, session])
   const eff = useMemo(() => applyEdits(house, doc.design.edits), [house, doc.design.edits])
   const change = (fn: () => boolean) => { if (fn()) { show(doc.design); setMsg(null); rerender() } }
 

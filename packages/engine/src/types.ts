@@ -90,6 +90,8 @@ export interface Viewer {
   setHeadBob(on: boolean): void
   climb(dir: 1 | -1): void
   teleport(x: number, y: number): void
+  /** Stand at a plan point on a storey, looking along yaw (0 = north / up the sheet, π/2 = west) */
+  goTo(floor: StoreyId, x: number, y: number, yaw: number): void
   /** Touch joystick input, each axis −1…1 */
   setJoystick(x: number, y: number): void
   setMeasuring(on: boolean): void

@@ -7,6 +7,7 @@ import { MeasureLabel } from '../viewer/MeasureLabel'
 import { Joystick } from '../viewer/Joystick'
 import { AreasPanel } from '../viewer/Areas'
 import { DesignPanel, newDesignSession } from '../viewer/DesignPanel'
+import { KitchenPanel } from '../viewer/KitchenPanel'
 import { SunPanel } from '../viewer/SunPanel'
 import { CommentsPanel, CommentPins, useComments } from '../viewer/Comments'
 import { type Drawer } from '../viewer/Toolbar'
@@ -60,6 +61,7 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
           <MeasureLabel viewer={viewer} />
           <CommentPins viewer={viewer} comments={comments.list} floor={ui.floor} mode={ui.mode} selected={selected} onSelect={c => { setSelected(c.id); setDrawer('comments') }} />
           {drawer === 'design' && meta && <DesignPanel viewer={viewer} house={ui.house} houseId={houseId} meta={meta} floor={ui.floor} onClose={() => setDrawer(null)} onHouse={setEdited} session={design.current} />}
+          {drawer === 'kitchen' && <KitchenPanel viewer={viewer} house={ui.house} session={design.current} onHouse={setEdited} onClose={() => setDrawer(null)} />}
           {drawer === 'areas' && <AreasPanel house={shown!} floor={ui.floor} onClose={() => setDrawer(null)} />}
           {drawer === 'sun' && meta && <SunPanel viewer={viewer} meta={meta} onClose={() => setDrawer(null)} />}
           {drawer === 'comments' && meta && <CommentsPanel viewer={viewer} house={ui.house} houseId={houseId} share={share} meta={meta} floor={ui.floor} state={comments} selected={selected} setSelected={setSelected} onClose={() => setDrawer(null)} />}
