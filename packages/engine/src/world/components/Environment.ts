@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
-import { X, Z, H, LEVEL } from '../units'
+import { X, Z, H, LEVEL, K } from '../units'
 
 // Lighting: golden-hour sun with a static shadow map, neutral interior environment (PMREM), garden backdrop,
 // time-of-day presets, a POOL of 4 point lights that moves to the active storey (constant light count → no shader
@@ -84,14 +84,15 @@ export default class Environment {
     this.sun.position.copy(this.center).addScaledVector(dir, 30)
     this.sun.color.set(t.color); this.sun.intensity = t.sun
     for (const c of this.canopies.children) c.lookAt(c.position.clone().add(dir))
-    r.instance.toneMappingExposure = t.exp
+    r.instance.toneMappingExposure = t.exp * 1.2                    // a touch brighter than before: the probe fill is darker in corners
     const scene = this.world.scene
-    scene.environmentIntensity = t.env; scene.backgroundIntensity = t.bg
+    this.envBase = t.env; scene.environmentIntensity = t.env * (this.probeBoost ?? 1); scene.backgroundIntensity = t.bg
     this.hemi.intensity = t.hemi
     const M = this.world.materials.list
     M.ledStrip.emissiveIntensity = k === 'evening' || t.sun < 1 ? 6 : k === 'golden' || t.sun > 5 ? 3.5 : 1.5
     if (k === 'evening' && !exp.state.lights) this.setLights(true)
     r.requestShadowUpdate()
+    this.requestProbes()
     exp.trigger('time', k)
   }
   // Lights come on one by one (and go off together): each lamp fades in after a short stagger.
@@ -101,7 +102,53 @@ export default class Environment {
     this.lamps.forEach((l, i) => { l.userData.target = on ? 9 : 0; l.userData.delay = on ? .15 + i * .35 : 0 })
     this.glow = { disc: on ? 8 : .4, ring: on ? 10 : 2, delay: on ? .1 : 0 }
     this.placeLamps(exp.state.floor)
+    this.requestProbes()
     exp.trigger('lights', on)
+  }
+  // ── light probes (sheet A-08): one 360° capture per storey, from inside the house, used for reflections and
+  // the image-based fill light. Glossy floors, the worktop and the glass reflect the real rooms and windows, and
+  // the fill takes the colour of the walls and the sunlit floor: a cheap stand-in for baked bounce light.
+  // Re-captured only when something visible changes (time of day, lights, a design), never per frame.
+  requestProbes() { this.probesDirty = true; this.probesAt = performance.now() }
+  /** Wait until changes settle (a sun slider moving every frame) before re-capturing. */
+  probesDue() { return this.probesDirty && performance.now() - (this.probesAt ?? 0) > 400 }
+  captureProbes(renderer) {
+    const world = this.world, scene = world.scene, G = world.groups
+    this.probesDirty = false
+    if (!this.cubeRT) {
+      this.cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType, generateMipmaps: false })
+      this.cubeCam = new THREE.CubeCamera(.05, 120, this.cubeRT)
+      this.probes = [null, null, null]
+    }
+    const all = [...G.arch, ...G.int, G.roof], vis = all.map(g => g.visible)
+    scene.environment = this.envMap                                   // capture with the neutral fill, not the old probe
+    // white sun while capturing: the fill keeps where light falls, not the golden-hour tint (the direct sun stays warm)
+    const sunColor = this.sun.color.clone(); this.sun.color.setRGB(1, 1, 1)
+    for (const f of [0, 1, 2]) {
+      const fl = world.house.floors[f]
+      // stand in the biggest room of the storey, at eye height
+      let best = null, area = 0
+      for (const r of fl.rooms.slice(0, fl.indoor)) { const a = (Math.min(r[4], 1040) - Math.max(r[2], 105)) * (Math.min(r[5], 1460) - Math.max(r[3], 105)); if (a > area) { area = a; best = r } }
+      if (!best) continue
+      const seeInt = ([[0], [1, 2], [1, 2]] as number[][])[f]
+      G.arch.forEach(g => { g.visible = true }); G.int.forEach((g, i) => { g.visible = seeInt.includes(i) }); G.roof.visible = true
+      this.cubeCam.position.set(X((best[2] + best[4]) / 2), LEVEL[f] + 1.5, Z((best[3] + best[5]) / 2))
+      this.cubeCam.update(renderer, scene)
+      this.probes[f]?.dispose()
+      this.probes[f] = this.pmrem.fromCubemap(this.cubeRT.texture)
+    }
+    all.forEach((g, i) => { g.visible = vis[i] })
+    this.sun.color.copy(sunColor)
+    this.useProbe()
+  }
+  /** Inside: the storey's probe. Outside, top view and the build story: the neutral studio fill. */
+  useProbe() {
+    const exp = this.world.experience, scene = this.world.scene, mode = exp.state.mode
+    const inside = mode === 'walk' || mode === 'trans'
+    const p = inside && !exp.story?.active ? this.probes?.[exp.state.floor] : null
+    scene.environment = p ? p.texture : this.envMap
+    this.probeBoost = p ? 2.6 : 1                                      // a captured interior averages ~2.5× darker than the studio fill
+    scene.environmentIntensity = (this.envBase ?? scene.environmentIntensity) * this.probeBoost
   }
   update(dt) {
     let moving = false
@@ -129,7 +176,7 @@ export default class Environment {
     const scene = this.world.scene
     scene.remove(this.sun, this.sun.target, this.hemi, this.canopies, ...this.lamps)
     this.sun.shadow.map?.dispose(); this.sun.dispose(); this.hemi.dispose(); this.lamps.forEach(l => l.dispose())
-    this.canopyGeo.dispose(); this.leafMat.dispose(); this.envMap.dispose(); this.pmrem.dispose()
+    this.canopyGeo.dispose(); this.leafMat.dispose(); this.envMap.dispose(); this.probes?.forEach(p => p?.dispose()); this.cubeRT?.dispose(); this.pmrem.dispose()
     scene.environment = null; scene.background = null
   }
 }

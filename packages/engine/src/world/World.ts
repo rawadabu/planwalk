@@ -66,6 +66,7 @@ export default class World {
     this.updateVisibility()
     exp.player.useHouse(house)
     exp.renderer.requestShadowUpdate()
+    this.environment.requestProbes()
   }
 
   inRoom(f, x, y) {
@@ -82,6 +83,7 @@ export default class World {
     this.groups.int.forEach((g, i) => { g.visible = outside ? i > 0 : top ? i <= floor && i >= floor - 1 : seeInt.includes(i) })
     this.groups.roof.visible = !top
     this.environment.placeLamps(floor)
+    this.environment.useProbe()
   }
 
   // ── design looks: swap materials per part and storey, keeping the base material to come back to ──
@@ -104,6 +106,7 @@ export default class World {
     }
     this.roomSkins.apply(rooms)
     this.experience.renderer.requestShadowUpdate()
+    this.environment.requestProbes()
   }
 
   // Render the shadow map with everything that should cast (all storeys + shadow-only canopies), then restore.

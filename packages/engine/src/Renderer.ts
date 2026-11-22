@@ -46,7 +46,7 @@ export default class Renderer {
     this.setQuality(QUALITY[saved] ? saved : 'medium')
   }
 
-  setQuality(name) {
+  setQuality(name, auto = false) {
     const q = QUALITY[name], exp = this.experience
     this.preset = q
     exp.state.quality = name
@@ -57,7 +57,7 @@ export default class Renderer {
     this.resize()
     exp.trigger('quality', name, q)
     this.requestShadowUpdate()
-    try { localStorage.setItem('twq', name) } catch (e) {}
+    try { localStorage.setItem('twq', name); if (!auto && this.preset) localStorage.setItem('twq-user', '1') } catch (e) {}
   }
 
   resize() {
@@ -73,6 +73,22 @@ export default class Renderer {
 
   requestShadowUpdate() { this.shadowDirty = true }
 
+  // First seconds after load: if the device can't hold ~30 fps and nobody chose a quality, step down once.
+  _autoQuality() {
+    const exp = this.experience
+    if (exp.test || this._autoDone || !exp.world.ready) return
+    const now = performance.now()
+    if (!this._autoT) { this._autoT = now; this._autoN = 0; return }
+    this._autoN++
+    if (now - this._autoT < 4000) return
+    const fps = this._autoN * 1000 / (now - this._autoT)
+    this._autoDone = true
+    let chosen = false
+    try { chosen = localStorage.getItem('twq-user') === '1' } catch (e) {}
+    const order = ['high', 'medium', 'low'], i = order.indexOf(exp.state.quality)
+    if (!chosen && fps < 30 && i < 2) { this.setQuality(order[i + 1], true); exp.trigger('autoQuality', order[i + 1], Math.round(fps)) }
+  }
+
   update() {
     const exp = this.experience
     if (exp.test && !this.renderRequested) return
@@ -84,6 +100,10 @@ export default class Renderer {
       exp.world.prepareShadowPass(false)
       this.shadowDirty = false
     }
+    // light probes need the fresh shadows, so they are captured right after them
+    const env = exp.world.environment
+    if (exp.world.ready && !exp.story?.active && (env?.probesDue() || (exp.test && env?.probesDirty))) { env.captureProbes(this.instance); if (!exp.test) this.renderRequested = true }
+    this._autoQuality()
     this.composer.render()
     if (this.renderRequested) { this.renderRequested = false; (window as any).__twRendered = ((window as any).__twRendered || 0) + 1 }
   }

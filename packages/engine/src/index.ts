@@ -99,7 +99,7 @@ export function createViewer(options: ViewerOptions): Viewer {
       const v = new THREE.Vector3(X(x), LEVEL[floor] + h, Z(y)).project(exp.camera.instance)
       return { x: (v.x + 1) / 2 * r.width, y: (1 - v.y) / 2 * r.height, visible: v.z < 1 && Math.abs(v.x) < 1.05 && Math.abs(v.y) < 1.05 }
     },
-    setQuality: q => exp.renderer.setQuality(q),
+    setQuality: q => exp.renderer.setQuality(q),   // a person's choice: automatic quality won't override it
     setLights: on => exp.world.environment?.setLights(on),
     setHeadBob: on => { exp.state.headBob = on },
     climb: dir => exp.player.startClimb(dir),
