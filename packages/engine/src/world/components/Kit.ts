@@ -1,0 +1,128 @@
+import * as THREE from 'three'
+import { X, Z, H, LEVEL, STOREY } from '../units'
+
+// Generic detailing kit: turns the `items` of house.json into geometry through the StaticBatcher.
+// Every kind is a small parametric builder, so a new house only needs data, not code.
+export default class Kit {
+  [key: string]: any
+  constructor(world) {
+    this.world = world
+    this.b = world.batcher
+    this.lightPoints = { 0: [], 1: [], 2: [] }          // downlight positions per storey (used by the lamp pool)
+    this.firePoints = []
+    let seed = 11; this.rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+    for (const it of world.house.items) {
+      if (it.k === 'model') continue
+      const layer = it.layer || 'int'
+      this.b.at(layer, it.f, LEVEL[it.f])
+      const fn = this[it.k]
+      if (fn) fn.call(this, it); else console.warn('unknown item kind', it.k)
+    }
+  }
+  box({ r, y, m, rad = 0, rot }) { this.b.box(...r, y[0], y[1], m, rad, rot ? { rot: true } : undefined) }
+  _run(r, h, tall) {
+    const b = this.b, [x1, y1, x2, y2] = r, horiz = (x2 - x1) >= (y2 - y1), L = horiz ? x2 - x1 : y2 - y1
+    const n = Math.max(1, Math.round(L / (tall ? 55 : 60))), gap = .4, top = tall ? h : h - .04
+    b.box(x1 + 6, y1 + 6, x2 - 6, y2 - 6, 0, .1, 'metal'); b.box(x1 + 4, y1 + 4, x2 - 4, y2 - 4, .003, .012, 'ledStrip')
+    for (let i = 0; i < n; i++) {
+      const a = (horiz ? x1 : y1) + L * i / n + gap, c = (horiz ? x1 : y1) + L * (i + 1) / n - gap
+      horiz ? b.box(a, y1, c, y2, .1, top, 'walnut', .004, { rot: true }) : b.box(x1, a, x2, c, .1, top, 'walnut', .004, { rot: true })
+    }
+    if (!tall) b.box(x1 - 1, y1 - 1, x2 + 1, y2 + 1, h - .04, h, 'quartz', .003)
+  }
+  base({ r, h = .92 }) { this._run(r, h, false) }
+  tall({ r, h = 2.4 }) { this._run(r, h, true) }
+  bed({ r: [x1, y1, x2, y2], head }) {
+    const b = this.b, hx = head[0] === 'x', lo = head[1] === '1', cut = (a, c, f) => a + (c - a) * f
+    b.box(x1 + 4, y1 + 4, x2 - 4, y2 - 4, 0, .08, 'metal')
+    b.box(x1, y1, x2, y2, .08, .32, 'fabricD', .03)
+    b.box(x1 + 1, y1 + 1, x2 - 1, y2 - 1, .32, .52, 'linen', .05)
+    if (hx) {
+      b.box(...(lo ? [x1 - 4, y1, x1 + 2, y2] : [x2 - 2, y1, x2 + 4, y2]), 0, 1.1, 'fabric', .03)
+      b.box(...(lo ? [cut(x1, x2, .3), y1, x2 + 1, y2] : [x1 - 1, y1, cut(x1, x2, .7), y2]), .46, .58, 'fabric', .04)
+      b.box(...(lo ? [x1 + 6, y1 + 6, x1 + 26, y2 - 6] : [x2 - 26, y1 + 6, x2 - 6, y2 - 6]), .52, .66, 'linen', .05)
+    } else {
+      b.box(...(lo ? [x1, y1 - 4, x2, y1 + 2] : [x1, y2 - 2, x2, y2 + 4]), 0, 1.1, 'fabric', .03)
+      b.box(...(lo ? [x1, cut(y1, y2, .3), x2, y2 + 1] : [x1, y1 - 1, x2, cut(y1, y2, .7)]), .46, .58, 'fabric', .04)
+      b.box(...(lo ? [x1 + 6, y1 + 6, x2 - 6, y1 + 26] : [x1 + 6, y2 - 26, x2 - 6, y2 - 6]), .52, .66, 'linen', .05)
+    }
+  }
+  rug({ r }) { this.b.box(...r, 0, .006, 'rug', .002) }
+  slot({ r: [x1, y1, x2, y2] }) {
+    const b = this.b, h = (x2 - x1) > (y2 - y1)
+    b.box(x1, y1, x2, y2, H - .012, H, 'metal')
+    h ? b.box(x1 + 2, (y1 + y2) / 2 - .6, x2 - 2, (y1 + y2) / 2 + .6, H - .014, H - .012, 'ledStrip')
+      : b.box((x1 + x2) / 2 - .6, y1 + 2, (x1 + x2) / 2 + .6, y2 - 2, H - .014, H - .012, 'ledStrip')
+  }
+  slats({ r: [x1, y1, x2, y2], h }) {
+    for (let y = y1; y < y2; y += 6) this.b.box(x1, y, x2, y + 3, 0, h, 'walnut', 0, { rot: true })
+    this.b.box(x2 - 2, y1 - 4, x2, y2 + 4, 0, h, 'metal')
+  }
+  shelving({ r: [x1, y1, x2, y2] }) {
+    const b = this.b
+    b.box(x1, y1, x1 + 2, y2, .1, 2.5, 'walnut', 0, { rot: true })
+    b.box(x1, y1, x2, y1 + 3, 0, 2.5, 'walnut', .003, { rot: true }); b.box(x1, y2 - 3, x2, y2, 0, 2.5, 'walnut', .003, { rot: true })
+    b.box(x1, (y1 + y2) / 2 - 1.5, x2, (y1 + y2) / 2 + 1.5, .5, 2.5, 'walnut', .003, { rot: true })
+    b.box(x1, y1, x2, y2, 0, .5, 'walnut', .004, { rot: true })
+    for (const h of [.95, 1.45, 1.95, 2.45]) { b.box(x1, y1 + 3, x2, y2 - 3, h, h + .03, 'walnut', .002); b.box(x1 + 2, y1 + 3, x1 + 4, y2 - 3, h - .008, h, 'ledStrip') }
+  }
+  planter({ r: [x1, y1, x2, y2], h }) {
+    const b = this.b
+    b.box(x1, y1, x2, y2, 0, h, 'stone', .01); b.box(x1 + 3, y1 + 3, x2 - 3, y2 - 3, h, h + .005, 'soil')
+    const n = Math.round(((x2 - x1) * (y2 - y1)) / 900)
+    for (let i = 0; i < n; i++) {
+      const g = new THREE.IcosahedronGeometry(.09 + this.rnd() * .08, 1); g.scale(1, .8, 1)
+      g.translate(X(x1 + 6 + this.rnd() * (x2 - x1 - 12)), b.base + h + .06, Z(y1 + 6 + this.rnd() * (y2 - y1 - 12))); b.add(g, 'plant')
+    }
+  }
+  opening({ r: [x1, y1, x2, y2], head }) {
+    const b = this.b, horiz = (x2 - x1) > (y2 - y1), c = 6
+    b.at('arch', b.floor, b.base).box(x1, y1, x2, y2, head, H, 'wall')
+    b.at('int', b.floor, b.base)
+    if (horiz) { b.box(x1, y1 - 1, x1 + c, y2 + 1, 0, head, 'oak'); b.box(x2 - c, y1 - 1, x2, y2 + 1, 0, head, 'oak'); b.box(x1, y1 - 1, x2, y2 + 1, head, head + .06, 'oak') }
+    else { b.box(x1 - 1, y1, x2 + 1, y1 + c, 0, head, 'oak'); b.box(x1 - 1, y2 - c, x2 + 1, y2, 0, head, 'oak'); b.box(x1 - 1, y1, x2 + 1, y2, head, head + .06, 'oak') }
+  }
+  clerestory({ r: [x1, y1, x2, y2], sill, headFromCeiling }) {
+    const b = this.b, head = H - headFromCeiling
+    for (const x of [x1, (x1 + x2) / 2, x2 - 5]) b.box(x, y1 + 2, x + 5, y2 - 2, sill, head, 'metal')
+    b.box(x1, y1 + 2, x2, y2 - 2, head - .05, head, 'metal'); b.box(x1, y1 + 2, x2, y2 - 2, sill, sill + .04, 'metal')
+    const cy = (y1 + y2) / 2; b.box(x1, cy - .6, x2, cy + .6, sill, head, 'glass')
+  }
+  lights({ p }) {
+    for (const [x, y] of p) {
+      const g = new THREE.CylinderGeometry(.045, .045, .01, 20); g.translate(X(x), this.b.base + H - .004, Z(y)); this.b.add(g, 'lightDisc')
+      this.lightPoints[this.b.floor].push([x, y])
+    }
+  }
+  pendantBar({ r: [x1, y1, x2, y2] }) {
+    const b = this.b
+    b.box(x1, y1, x2, y2, H - .9, H - .87, 'metal', .003); b.box(x1 + 2, y1 + 2, x2 - 2, y2 - 2, H - .905, H - .9, 'ringLed')
+    for (const y of [y1 + 10, y2 - 10]) b.box((x1 + x2) / 2 - .5, y - .5, (x1 + x2) / 2 + .5, y + .5, H - .87, H, 'metal')
+  }
+  rings({ c: [cx, cy] }) {
+    const b = this.b, top = H + STOREY
+    ;[[.62, H + .55, 0, 0], [.46, H + 1.05, .35, -.25], [.34, H + .2, -.3, .3]].forEach(([r, y, ox, oz]) => {
+      const x = X(cx) + ox, z = Z(cy) + oz
+      const ring = new THREE.TorusGeometry(r, .018, 10, 96); ring.rotateX(Math.PI / 2); ring.translate(x, b.base + y, z); b.add(ring, 'metal')
+      const led = new THREE.TorusGeometry(r, .008, 6, 96); led.rotateX(Math.PI / 2); led.translate(x, b.base + y - .016, z); b.add(led, 'ringLed')
+      for (const a of [0, 2.1, 4.2]) { const c = new THREE.CylinderGeometry(.0015, .0015, top - y, 4); c.translate(x + Math.cos(a) * r, b.base + (top + y) / 2, z + Math.sin(a) * r); b.add(c, 'metal') }
+    })
+  }
+  fireplace({ r: [x1, y1, x2, y2] }) {
+    const b = this.b
+    b.box(x1, y1, x2, y1 + 24, 0, .40, 'quartz', .005)                       // floating bench
+    b.box(x1 + 9, y1 + 24, x2 - 1, y2, 0, .30, 'stone'); b.box(x1 + 9, y1 + 24, x2 - 1, y2, .78, H, 'stone')
+    b.box(x1 + 15, y2 - 18, x2 - 7, y2 - 6, .30, .78, 'blackGlass'); b.box(x1 + 15, y1 + 30, x2 - 7, y2 - 6, .30, .33, 'blackGlass')
+    b.box(x1 + 21, y1 + 36, x2 - 13, y1 + 44, .33, .37, 'flame')
+    this.firePoints.push({ f: b.floor, x: (x1 + x2) / 2 + 9, y: y1 + 40, base: b.base, w: X(x2 - x1 - 34) })
+  }
+  stairU() {
+    const b = this.b, r = STOREY / 16
+    for (let i = 0; i < 9; i++) { const y2 = 990 - i * 17.8; b.box(805, y2 - 17.8, 975, y2 + 1, (i + 1) * r - .045, (i + 1) * r, 'oak', .004) }
+    b.box(805, 703, 1020, 830, 9 * r - .2, 9 * r, 'oak', .004)
+    for (let i = 0; i < 7; i++) { const x2 = 805 - i * 20; b.box(x2 - 20, 703, x2 + 1, 815, 9 * r + (i + 1) * r - .045, 9 * r + (i + 1) * r, 'oak', .004) }
+    b.box(975, 830, 980, 990, 0, 1.6, 'metal')
+    for (let i = 0; i < 9; i++) { const y2 = 990 - i * 17.8; b.box(803, y2 - 17.8, 805, y2, (i + 1) * r, (i + 1) * r + .9, 'railGlass') }
+  }
+  dispose() {}
+}

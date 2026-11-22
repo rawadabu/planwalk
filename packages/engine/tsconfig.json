@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Ported from the JS prototype: strict on, but implicit `any` on internal helpers is allowed for now.
+    // The public API (index.ts, types.ts) is fully typed. Tighten module by module.
+    "noImplicitAny": false
+  },
+  "include": ["src"]
+}
