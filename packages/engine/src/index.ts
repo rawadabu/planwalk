@@ -111,6 +111,28 @@ export function createViewer(options: ViewerOptions): Viewer {
     resetView: () => { const h = exp.world.house; if (!h) return; exp.player.setFloor(1, h.floors[1].start); if (exp.state.mode !== 'walk') exp.player.setMode('walk') },
     stats: () => { const i = exp.renderer.instance.info; return { calls: i.render.calls, triangles: i.render.triangles, programs: i.programs?.length ?? 0 } },
     requestRender: () => { exp.renderer.renderRequested = true },
+    // the whole house as a binary glTF (for Blender / Unreal / photoreal rendering): every storey, instances expanded
+    exportGLB: async () => {
+      const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
+      const g = exp.world.groups, root = new THREE.Group(); root.name = 'house'
+      const parts: Array<[string, THREE.Object3D]> = [...g.arch.map((o: THREE.Object3D, i: number) => [`arch${i}`, o] as [string, THREE.Object3D]), ...g.int.map((o: THREE.Object3D, i: number) => [`int${i}`, o] as [string, THREE.Object3D]), ['outdoor', g.outdoor], ['roof', g.roof]]
+      for (const [name, grp] of parts) {
+        grp.updateWorldMatrix(true, true)
+        grp.traverse((o: THREE.Object3D) => {
+          const m = o as THREE.Mesh
+          if (!m.isMesh || !m.geometry) return
+          const inst = o as THREE.InstancedMesh, M = new THREE.Matrix4()
+          const n = inst.isInstancedMesh ? inst.count : 1
+          for (let i = 0; i < n; i++) {
+            const copy = new THREE.Mesh(m.geometry, m.material)
+            copy.name = `${name}:${o.name || 'mesh'}${n > 1 ? ':' + i : ''}`
+            if (inst.isInstancedMesh) { inst.getMatrixAt(i, M); M.premultiply(o.matrixWorld) } else M.copy(o.matrixWorld)
+            copy.applyMatrix4(M); root.add(copy)
+          }
+        })
+      }
+      return await new Promise<ArrayBuffer>((res, rej) => new GLTFExporter().parse(root, r => res(r as ArrayBuffer), rej, { binary: true, onlyVisible: false }))
+    },
     destroy: () => { subs.forEach(off => off()); exp.destroy() },
   }
 }

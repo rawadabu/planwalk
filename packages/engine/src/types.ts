@@ -100,6 +100,8 @@ export interface Viewer {
   resetView(): void
   /** Draw calls, triangles and programs of the last frame */
   stats(): { calls: number; triangles: number; programs: number }
+  /** The whole house as a binary glTF (.glb), for Blender, Unreal or offline rendering. */
+  exportGLB(): Promise<ArrayBuffer>
   requestRender(): void
   destroy(): void
 }
