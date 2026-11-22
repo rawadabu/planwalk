@@ -55,6 +55,7 @@ export default class World {
   updateVisibility() {
     if (!this.ready) return
     const { floor, mode } = this.experience.state, top = mode === 'top', outside = mode === 'outside'
+    if (mode === 'story') return                     // the story drives visibility itself
     this.groups.arch.forEach((g, i) => { g.visible = outside || !top || i <= floor })
     const seeInt = { 0: [0], 1: [1, 2], 2: [1, 2] }[floor]
     this.groups.int.forEach((g, i) => { g.visible = outside ? i > 0 : top ? i <= floor && i >= floor - 1 : seeInt.includes(i) })
@@ -65,7 +66,8 @@ export default class World {
   // Render the shadow map with everything that should cast (all storeys + shadow-only canopies), then restore.
   prepareShadowPass(on) {
     const all = [...this.groups.arch, ...this.groups.int, this.groups.roof]
-    if (on) { this._vis = all.map(g => g.visible); all.forEach(g => g.visible = true); this.environment.canopies.visible = true }
+    const story = this.experience.story?.active      // during the story only what is built casts shadows
+    if (on) { this._vis = all.map(g => g.visible); if (!story) all.forEach(g => g.visible = true); this.environment.canopies.visible = true }
     else { all.forEach((g, i) => g.visible = this._vis[i]); this.environment.canopies.visible = false }
   }
 

@@ -2,7 +2,7 @@ import type { House, RoomTuple, StoreyId } from '@planwalk/house'
 
 export type Quality = 'high' | 'medium' | 'low'
 export type TimeOfDay = 'morning' | 'noon' | 'golden' | 'evening' | 'custom'
-export type Mode = 'walk' | 'top' | 'outside' | 'trans'
+export type Mode = 'walk' | 'top' | 'outside' | 'story' | 'trans'
 
 export interface ViewerOptions {
   canvas: HTMLCanvasElement
@@ -54,6 +54,10 @@ export interface Viewer {
   setTime(t: Exclude<TimeOfDay, 'custom'>): void
   /** Real sun for a place, date and hour (switches time to 'custom') */
   setSunAt(s: SunAt): { az: number; el: number }
+  /** Scroll story: t ∈ [0, 1] builds the house stage by stage, then goes inside. null leaves the story. */
+  setStory(t: number | null): void
+  /** Live finishes: cabinets 'walnut' | 'oak' | 'navy' | 'sage' | 'white'; floor 'tile' | 'oak' | 'concrete' */
+  setFinish(slot: 'cabinets' | 'floor', option: string): void
   /** The surface point under a screen position, or null */
   pick(clientX: number, clientY: number): PlanPoint | null
   /** Screen position (CSS px, relative to the canvas) of a house point; visible = in front of the camera */

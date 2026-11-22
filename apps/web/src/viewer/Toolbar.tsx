@@ -17,6 +17,7 @@ export function Toolbar({ viewer, ui, measuring, setMeasuring, drawer, setDrawer
   return (
     <div className="panel bar" role="toolbar" aria-label="תצוגה והגדרות">
       <Link className="btn brand" to="/">Planwalk</Link>
+      {!location.pathname.startsWith("/s/") && <Link className="btn" to="story">סיפור הבנייה</Link>}
       <span className="sep" />
       <div className="seg" role="group" aria-label="קומה">
         {FLOORS.map(([f, label]) => <button key={f} className="btn" aria-pressed={ui.floor === f} onClick={() => viewer.setFloor(f)}>{label}</button>)}

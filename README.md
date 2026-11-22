@@ -86,3 +86,7 @@ per-frame ones (`pose`, `measure`) are written straight to DOM refs so React doe
 - **Outside view** (`מבחוץ`): orbit the whole house from the garden.
 - **Real sun** (`שמש אמיתית`): the project's address (lat/lng) + plan north → sun position for any date and hour, or play the whole day. Set it on the project page → Location. Address search uses OpenStreetMap Nominatim.
 - **Comments** (`הערות`): pin a note to a spot in the house; replies; resolve. Org members comment by role (viewer: write · sales/architect: + resolve · owner/admin: + delete). Share links with the *comment* permission let buyers comment with their name; view-only links and the public demo can't.
+
+## Build story (`/h/:id/story`)
+
+A scroll page where the house builds itself from its own plan data: blueprint lines → ground slab → concrete frame → block walls → windows → finished house, at dusk turning to golden hour. Then the camera goes into the kitchen, where buyers choose cabinet (walnut / oak / navy / sage / white) and floor (light tile / oak / concrete) finishes live. Engine: `viewer.setStory(t)` and `viewer.setFinish(slot, option)`; nothing is rebuilt per frame (stages are revealed with rising clipping planes).

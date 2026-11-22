@@ -86,6 +86,25 @@ export default class Materials {
     this.shadowless = new Set(['glass', 'railGlass', 'lightDisc', 'ringLed', 'ledStrip', 'flame', 'rug'])
   }
   get(key) { return this.list[key] }
+  // "Make it yours": live finish options. Cabinets = the walnut joinery, floor = the floor finish.
+  setFinish(slot: 'cabinets' | 'floor', option: string) {
+    const mat = this.list[slot === 'cabinets' ? 'walnut' : 'floor']
+    if (!this._orig) this._orig = {}
+    if (!this._orig[slot]) this._orig[slot] = { map: mat.map, roughnessMap: mat.roughnessMap, normalMap: mat.normalMap, color: mat.color.getHex(), roughness: mat.roughness }
+    const o = this._orig[slot], oak = this.list.oak
+    const looks = {
+      cabinets: { walnut: o, oak: { map: oak.map, roughnessMap: oak.roughnessMap, normalMap: oak.normalMap, color: 0xf3e4cf, roughness: 1 },
+        navy: { map: null, roughnessMap: null, normalMap: null, color: 0x22355c, roughness: .42 }, sage: { map: null, roughnessMap: null, normalMap: null, color: 0x8b9a80, roughness: .5 },
+        white: { map: null, roughnessMap: null, normalMap: null, color: 0xf1ede6, roughness: .4 } },
+      floor: { tile: o, oak: { map: oak.map, roughnessMap: oak.roughnessMap, normalMap: null, color: 0xe2cdb0, roughness: 1 },
+        concrete: { map: null, roughnessMap: null, normalMap: null, color: 0xb9b4ac, roughness: .75 } },
+    }
+    const l = looks[slot]?.[option]; if (!l) return false
+    const maps = !!mat.map !== !!l.map || !!mat.normalMap !== !!l.normalMap
+    Object.assign(mat, { map: l.map, roughnessMap: l.roughnessMap, normalMap: l.normalMap, roughness: l.roughness }); mat.color.setHex(l.color)
+    if (maps) mat.needsUpdate = true
+    return true
+  }
   dispose() {
     for (const m of Object.values(this.list) as any[]) m.dispose()
     this.textures.forEach(t => t.dispose())

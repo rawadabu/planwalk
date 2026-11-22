@@ -9,6 +9,7 @@ import Renderer from './Renderer'
 import World from './world/World'
 import Player from './player/Player'
 import Measure from './player/Measure'
+import Story from './world/Story'
 import type { ViewerOptions, Mode, Quality, TimeOfDay } from './types'
 import type { StoreyId } from '@planwalk/house'
 
@@ -44,6 +45,7 @@ export default class Experience extends EventEmitter {
     this.world = new World()
     this.player = new Player()
     this.measure = new Measure()
+    this.story = new Story()
 
     this._onResize = () => { this.camera.resize(); this.renderer.resize() }
     this._onTick = () => this.update()
@@ -55,6 +57,7 @@ export default class Experience extends EventEmitter {
     const dt = this.time.delta
     this.player.update(dt)
     this.camera.update(dt)
+    this.story.update(dt)
     this.world.update(dt, this.time.elapsed)
     this.measure.update()
     this.trigger('frame', dt)
@@ -70,6 +73,7 @@ export default class Experience extends EventEmitter {
     this.time.dispose()
     this.sizes.dispose()
     this.measure.dispose()
+    this.story.dispose()
     this.player.dispose()
     this.world.dispose()
     this.resources.dispose()
