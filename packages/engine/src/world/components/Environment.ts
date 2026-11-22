@@ -72,7 +72,9 @@ export default class Environment {
   setSun(az, el) {
     const t = lookFor(el)
     this._apply(az, Math.max(el, 2), t, 'custom')
-    if (el < -2 && !this.world.experience.state.lights) this.setLights(true)
+    const lit = this.world.experience.state.lights
+    if (el < 1 && !lit) this.setLights(true, true)
+    else if (el > 4 && lit && this.autoLights) this.setLights(false)
   }
   _apply(azDeg, elDeg, t, k) {
     const exp = this.world.experience, r = exp.renderer
@@ -92,19 +94,36 @@ export default class Environment {
     r.requestShadowUpdate()
     exp.trigger('time', k)
   }
-  setLights(on) {
+  // Lights come on one by one (and go off together): each lamp fades in after a short stagger.
+  setLights(on, auto = false) {
     const exp = this.world.experience; exp.state.lights = on
-    const M = this.world.materials.list
-    M.lightDisc.emissiveIntensity = on ? 8 : .4; M.ringLed.emissiveIntensity = on ? 10 : 2
+    this.autoLights = on && auto
+    this.lamps.forEach((l, i) => { l.userData.target = on ? 9 : 0; l.userData.delay = on ? .15 + i * .35 : 0 })
+    this.glow = { disc: on ? 8 : .4, ring: on ? 10 : 2, delay: on ? .1 : 0 }
     this.placeLamps(exp.state.floor)
     exp.trigger('lights', on)
+  }
+  update(dt) {
+    let moving = false
+    for (const l of this.lamps) {
+      const u = l.userData; if (u.target == null) continue
+      if (u.delay > 0) { u.delay -= dt; moving = true; continue }
+      const d = u.target - l.intensity
+      if (Math.abs(d) > .02) { l.intensity += d * Math.min(1, dt * 4); moving = true } else l.intensity = u.target
+    }
+    if (this.glow) {
+      const M = this.world.materials.list, g = this.glow
+      if (g.delay > 0) g.delay -= dt
+      else for (const [m, t] of [[M.lightDisc, g.disc], [M.ringLed, g.ring]]) { const d = t - m.emissiveIntensity; if (Math.abs(d) > .02) { m.emissiveIntensity += d * Math.min(1, dt * 3); moving = true } else m.emissiveIntensity = t }
+    }
+    if (moving && this.world.experience.test) this.world.experience.renderer.renderRequested = true
   }
   // Move the 4 pooled lamps to the 4 downlights nearest the camera on the active storey.
   placeLamps(floor, near?) {
     const on = this.world.experience.state.lights, pts = this.kit.lightPoints[floor] || []
     const ref = near || { x: 575, y: 800 }
     const sorted = [...pts].sort((a, b) => Math.hypot(a[0] - ref.x, a[1] - ref.y) - Math.hypot(b[0] - ref.x, b[1] - ref.y))
-    this.lamps.forEach((l, i) => { const p = sorted[i]; l.visible = on && !!p; if (p) l.position.set(X(p[0]), LEVEL[floor] + H - .15, Z(p[1])) })
+    this.lamps.forEach((l, i) => { const p = sorted[i]; l.visible = !!p; if (!on && l.userData.target == null) l.intensity = 0; if (p) l.position.set(X(p[0]), LEVEL[floor] + H - .15, Z(p[1])) })
   }
   dispose() {
     const scene = this.world.scene

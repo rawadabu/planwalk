@@ -9,6 +9,8 @@ import { AreasPanel } from '../viewer/Areas'
 import { DesignPanel, newDesignSession } from '../viewer/DesignPanel'
 import { KitchenPanel } from '../viewer/KitchenPanel'
 import { CostPanel } from '../viewer/Cost'
+import { Tour } from '../viewer/Tour'
+import { StylesBar } from '../viewer/Styles'
 import { SunPanel } from '../viewer/SunPanel'
 import { CommentsPanel, CommentPins, useComments } from '../viewer/Comments'
 import { type Drawer } from '../viewer/Toolbar'
@@ -34,6 +36,16 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
   const [edited, setEdited] = useState<House | null>(null)
   const shown = edited ?? ui.house
   const design = useRef(newDesignSession())
+  const [touring, setTouring] = useState(false), [moreOpen, setMoreOpen] = useState(false), [, bump] = useState(0)
+  // tap the floor to walk there (not while choosing things in Design or placing a comment)
+  useEffect(() => {
+    if (!viewer) return
+    return viewer.on('tap', e => {
+      if (measuring || touring || drawer === 'design' || drawer === 'comments' || ui.mode !== 'walk') return
+      const h = viewer.pick(e.clientX, e.clientY)
+      if (h && h.h < .15 && h.floor === ui.floor) viewer.teleport(h.x, h.y)
+    })
+  }, [viewer, measuring, touring, drawer, ui.mode, ui.floor])
   const openCount = comments.list.filter(c => !c.parentId && !c.resolved).length
 
   return (
@@ -63,11 +75,20 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
           <CommentPins viewer={viewer} comments={comments.list} floor={ui.floor} mode={ui.mode} selected={selected} onSelect={c => { setSelected(c.id); setDrawer('comments') }} />
           {drawer === 'design' && meta && <DesignPanel viewer={viewer} house={ui.house} houseId={houseId} meta={meta} floor={ui.floor} onClose={() => setDrawer(null)} onHouse={setEdited} session={design.current} onCost={() => setDrawer('cost')} />}
           {drawer === 'kitchen' && <KitchenPanel viewer={viewer} house={ui.house} houseId={houseId} prices={meta?.prices} session={design.current} onHouse={setEdited} onClose={() => setDrawer(null)} onCost={() => setDrawer('cost')} />}
+          {drawer === 'styles' && <StylesBar viewer={viewer} house={ui.house} session={design.current} prices={meta?.prices} onHouse={setEdited} onClose={() => setDrawer(null)} onChanged={() => bump(n => n + 1)} />}
+          {touring && <Tour viewer={viewer} house={shown!} onEnd={() => setTouring(false)} />}
           {drawer === 'cost' && <CostPanel house={ui.house} houseId={houseId} design={design.current.doc.design} prices={meta?.prices as never} onClose={() => setDrawer(null)} />}
           {drawer === 'areas' && <AreasPanel house={shown!} floor={ui.floor} onClose={() => setDrawer(null)} />}
           {drawer === 'sun' && meta && <SunPanel viewer={viewer} meta={meta} onClose={() => setDrawer(null)} />}
           {drawer === 'comments' && meta && <CommentsPanel viewer={viewer} house={ui.house} houseId={houseId} share={share} meta={meta} floor={ui.floor} state={comments} selected={selected} setSelected={setSelected} onClose={() => setDrawer(null)} />}
-          <Toolbar viewer={viewer} ui={ui} measuring={measuring} setMeasuring={setMeasuring} drawer={drawer} setDrawer={setDrawer} commentCount={openCount} />
+          <Toolbar viewer={viewer} ui={ui} measuring={measuring} setMeasuring={setMeasuring} drawer={drawer} setDrawer={d => { setDrawer(d); setMoreOpen(false) }} commentCount={openCount} onTour={() => { setDrawer(null); setTouring(true); setMoreOpen(false) }} open={moreOpen} />
+          <nav className="mbar" aria-label="פעולות עיקריות">
+            <button onClick={() => { setDrawer(null); setTouring(true) }}><b>▶</b>סיור</button>
+            <button aria-pressed={drawer === 'styles'} onClick={() => setDrawer(drawer === 'styles' ? null : 'styles')}><b>◐</b>סגנון</button>
+            <button aria-pressed={drawer === 'sun'} onClick={() => setDrawer(drawer === 'sun' ? null : 'sun')}><b>☀</b>שעה</button>
+            <button onClick={() => viewer.setFloor(((ui.floor + 1) % 3) as 0 | 1 | 2)}><b>⇅</b>{ui.house.floors[((ui.floor + 1) % 3) as 0 | 1 | 2].name}</button>
+            <button aria-pressed={moreOpen} onClick={() => setMoreOpen(o => !o)}><b>⋯</b>עוד</button>
+          </nav>
           <div className="panel hint">הליכה: <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> או חיצים · גרירה כדי להסתכל · <kbd>Shift</kbd> מהר יותר</div>
           <Joystick viewer={viewer} />
         </>

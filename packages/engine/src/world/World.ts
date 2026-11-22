@@ -126,6 +126,7 @@ export default class World {
   update(dt, elapsed) {
     if (!this.ready) return
     this.fireplace.update(elapsed)
+    this.environment.update(dt)
   }
 
   dispose() {

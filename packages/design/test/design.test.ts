@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseHouse } from '@planwalk/house'
-import { cabinets, panels, nest, worktop, hardware, SHEET, SLAB_MAX, costReport, roomQuantities, DEFAULT_PRICES, priceBook, autoFill, checkRun, runsFromPlan, runUsed, runFootprint, windowsBehind, applyEdits, editKey, findPartition, windowInfo, PX_PER_CM, DesignDoc, emptyDesign, parseDesign, parseTarget, resolveFinish, storeyLooks, roomLooks, targetKey, validate, finishesFor, BASE, PART_IDS, finish } from '../src/index'
+import { STYLES, withStyle, styleOf, cabinets, panels, nest, worktop, hardware, SHEET, SLAB_MAX, costReport, roomQuantities, DEFAULT_PRICES, priceBook, autoFill, checkRun, runsFromPlan, runUsed, runFootprint, windowsBehind, applyEdits, editKey, findPartition, windowInfo, PX_PER_CM, DesignDoc, emptyDesign, parseDesign, parseTarget, resolveFinish, storeyLooks, roomLooks, targetKey, validate, finishesFor, BASE, PART_IDS, finish } from '../src/index'
 
 const house = parseHouse(JSON.parse(readFileSync(new URL('../../../storage/houses/twin-a/house.json', import.meta.url), 'utf8')))
 
@@ -298,4 +298,19 @@ test('shop: worktop cut-outs sit over their units; long tops split at a unit joi
   assert.equal(split.length, 2)
   assert.ok(split.every(p => p.length <= SLAB_MAX && p.joint))
   for (const p of split) for (const c of p.cutouts) assert.ok(c.x - c.w / 2 > 0 && c.x + c.w / 2 < p.length, 'cut-out inside its piece')
+})
+
+test('styles: every finish is valid for its part, each style is priced and recognised', () => {
+  const prices = new Set<number>()
+  for (const st of STYLES) {
+    const d = withStyle(emptyDesign(), st)
+    assert.deepEqual(validate(d, house).filter(i => i.level === 'error'), [], st.id)
+    assert.equal(styleOf(d)?.id, st.id)
+    const r = costReport(house, d)
+    assert.deepEqual(r.missing, [], st.id)
+    prices.add(r.total)
+  }
+  assert.equal(prices.size, STYLES.length, 'the three looks cost different amounts')
+  const mixed = { ...withStyle(emptyDesign(), STYLES[0]), finishes: { ...withStyle(emptyDesign(), STYLES[0]).finishes, 'walls@f1.r6': 'paint-sage' } }
+  assert.equal(styleOf(mixed), null)
 })

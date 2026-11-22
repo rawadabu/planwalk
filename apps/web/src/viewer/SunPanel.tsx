@@ -36,7 +36,7 @@ export function SunPanel({ viewer, meta, onClose }: { viewer: Viewer; meta: Hous
     let last = performance.now()
     const tick = (t: number) => {
       const dt = (t - last) / 1000; last = t
-      setHour(h => { const n = h + dt * 1.2; if (n >= 20) { setPlaying(false); return 20 } return n })   // ~12 s for a day
+      setHour(h => { const n = h + dt * 1.3; if (n >= 22) { setPlaying(false); return 22 } return n })   // ~13 s from morning to night
       raf.current = requestAnimationFrame(tick)
     }
     raf.current = requestAnimationFrame(tick)
@@ -49,11 +49,11 @@ export function SunPanel({ viewer, meta, onClose }: { viewer: Viewer; meta: Hous
       {!loc ? <p className="fine">כדי לראות את השמש האמיתית, הוסיפו כתובת לפרויקט (בעמוד הפרויקט). עד אז אפשר לבחור בוקר, צהריים, שעת זהב או ערב בסרגל.</p> : <>
         <p className="where">{loc.address ?? `${loc.lat.toFixed(3)}, ${loc.lng.toFixed(3)}`}</p>
         <label className="field">תאריך<input type="date" value={day} onChange={e => e.target.value && setDay(e.target.value)} /></label>
-        <label className="field">שעה <b className="num">{hhmm(hour)}</b>
-          <input type="range" min={5} max={20} step={0.25} value={hour} onChange={e => { setPlaying(false); setHour(+e.target.value) }} />
+        <label className="field">שעה ביום <b className="num">{hhmm(hour)}</b>{sun && sun.el < 1 ? <span className="night"> · לילה, האורות דלוקים</span> : null}
+          <input type="range" min={5} max={22} step={0.25} value={hour} onChange={e => { setPlaying(false); setHour(+e.target.value) }} />
         </label>
         <div className="row2">
-          <button className="btn primary" onClick={() => { if (hour >= 19.9) setHour(5.5); setPlaying(p => !p) }}>{playing ? 'עצירה' : 'הצגת כל היום'}</button>
+          <button className="btn primary" onClick={() => { if (hour >= 21.9) setHour(5.5); setPlaying(p => !p) }}>{playing ? 'עצירה' : 'מבוקר עד לילה'}</button>
           <button className="btn" onClick={() => setDay(`${new Date().getFullYear()}-06-21`)}>יום ארוך</button>
           <button className="btn" onClick={() => setDay(`${new Date().getFullYear()}-12-21`)}>יום קצר</button>
         </div>

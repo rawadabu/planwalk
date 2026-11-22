@@ -104,6 +104,7 @@ export function createViewer(options: ViewerOptions): Viewer {
     setHeadBob: on => { exp.state.headBob = on },
     climb: dir => exp.player.startClimb(dir),
     teleport: (x, y) => exp.player.teleportTo(x, y),
+    look: (yaw, pitch) => { const l = exp.player.look; l.yaw = yaw; if (pitch != null) l.pitch = pitch },
     goTo: (floor, x, y, yaw) => { if (exp.state.mode !== 'walk') exp.player.setMode('walk'); exp.player.setFloor(floor, { x, y, yaw }) },
     setJoystick: (x, y) => { exp.player.jv = { x, y } },
     setMeasuring: on => exp.measure.setActive(on),
