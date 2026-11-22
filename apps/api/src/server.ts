@@ -7,10 +7,16 @@ import path from 'node:path'
 import { config } from './config.js'
 import { houseRoutes } from './routes/houses.js'
 import { projectRoutes } from './routes/projects.js'
+import { authRoutes } from './routes/auth.js'
+import { runMigrations } from './db/client.js'
+import { seed } from './db/seed.js'
+
+await runMigrations()
+await seed()
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' }, bodyLimit: 1024 * 1024 })
 
-await app.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') ?? false })
+await app.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') ?? false, credentials: true })
 await app.register(multipart)
 
 // Shared 3D asset library (textures, models, sky): long-lived, immutable cache
@@ -23,6 +29,7 @@ await app.register(fastifyStatic, {
 })
 
 app.get('/api/health', async () => ({ ok: true }))
+await app.register(authRoutes)
 await app.register(houseRoutes)
 await app.register(projectRoutes)
 

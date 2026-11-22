@@ -12,7 +12,7 @@ export default function Landing() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M3 3h18v18H3z"/><path d="M3 12h9v9M12 3v5"/><circle cx="17" cy="16" r="1.6" fill="currentColor" stroke="none"/></svg>
             Planwalk
           </a>
-          <div className="links"><a href="#how">How it works</a><a href="#demo">Demo house</a><a href="#pricing">Pricing</a></div>
+          <div className="links"><a href="#how">How it works</a><a href="#demo">Demo house</a><a href="#pricing">Pricing</a><a href="/app">Sign in</a></div>
           <a className="btn sm primary" href="/h/twin-a">Walk the demo</a>
         </div>
       </nav>

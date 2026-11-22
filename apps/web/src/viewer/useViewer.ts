@@ -22,7 +22,7 @@ export interface ViewerUiState {
  * High-frequency data (pose every frame, measure label position) is NOT put in React state:
  * consumers subscribe with viewer.on('pose' | 'measure') and write to DOM refs, so React re-renders only on real changes.
  */
-export function useViewer(houseId: string) {
+export function useViewer(houseId: string, share?: string) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [viewer, setViewer] = useState<Viewer | null>(null)
   const [ui, setUi] = useState<ViewerUiState>({ progress: 0, house: null, error: null, floor: 1, mode: 'walk', room: null, nearStair: false, quality: 'medium', time: 'golden', lights: false, headBob: true })
@@ -32,7 +32,7 @@ export function useViewer(houseId: string) {
     if (!canvas) return
     let v: Viewer
     try {
-      v = createViewer({ canvas, houseUrl: api.houseUrl(houseId), libraryUrl: api.libraryUrl, manualRender: new URLSearchParams(location.search).has('test') })
+      v = createViewer({ canvas, houseUrl: api.houseUrl(houseId, share), libraryUrl: api.libraryUrl, manualRender: new URLSearchParams(location.search).has('test') })
     } catch (e) {
       setUi(s => ({ ...s, error: 'WebGL is not available in this browser.' })); return
     }
@@ -51,7 +51,7 @@ export function useViewer(houseId: string) {
     setViewer(v)
     ;(window as unknown as { __viewer?: Viewer }).__viewer = v      // for debugging and automated checks
     return () => { v.destroy(); setViewer(null) }
-  }, [houseId])
+  }, [houseId, share])
 
   return { canvasRef, viewer, ui, setUi }
 }

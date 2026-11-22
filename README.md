@@ -12,12 +12,33 @@ storage/         Local storage (houses/<id>/house.json + plan images, library/ t
 
 ## Run
 
+Needs Node 22+ and Postgres 16 (local, or Supabase — copy `.env.example` to `.env`).
+
 ```bash
 npm install
 npm run build -w @planwalk/engine     # generates the engine's public type declarations
-npm run dev -w @planwalk/api          # API on http://127.0.0.1:8787
+npm run dev -w @planwalk/api          # API on http://127.0.0.1:8787 — runs DB migrations + seeds the demo house on start
 npm run dev -w @planwalk/web          # web on http://localhost:5173 (proxies /api)
 ```
+
+Schema changes: edit `apps/api/src/db/schema.ts`, then `cd apps/api && npx drizzle-kit generate --name <change>`.
+
+## Accounts, organizations and permissions (phase 1)
+
+Better Auth (email + password, email verification, sessions) with the organization plugin.
+Data lives in your Postgres (Supabase): `user`, `session`, `account`, `organization`, `member`, `invitation`,
+plus `project`, `building`, `unit`, `house`, `plan_upload`, `share_link`.
+
+| Role | Projects | Upload plans | Units (status/price) | Share links |
+|---|---|---|---|---|
+| owner / admin | create, edit, delete | ✓ | ✓ | create, turn off |
+| architect | create, edit | ✓ | – | create, turn off |
+| sales | read | – | ✓ | create, turn off |
+| viewer | read | – | – | – |
+
+- Private houses return 404 to anyone who isn't a member and has no valid share link (they never reveal they exist).
+- Share links: random 192-bit token shown once; only its SHA-256 is stored; optional expiry; can be turned off.
+- Invitations require a verified email before they can be accepted.
 
 Production (one process): `npm run build && npm start` — the API serves `apps/web/dist`.
 

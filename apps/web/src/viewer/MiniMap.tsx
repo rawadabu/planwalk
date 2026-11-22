@@ -4,7 +4,7 @@ import type { House, RoomTuple, StoreyId } from '@planwalk/house'
 import { api } from '../api'
 
 // The architect's plan for the current storey, rooms highlighted, live position + view cone. Click to move there.
-export function MiniMap({ viewer, house, houseId, floor, room }: { viewer: Viewer; house: House; houseId: string; floor: StoreyId; room: RoomTuple | null }) {
+export function MiniMap({ viewer, house, houseId, floor, room, share }: { viewer: Viewer; house: House; houseId: string; floor: StoreyId; room: RoomTuple | null; share?: string }) {
   const svgRef = useRef<SVGSVGElement>(null), meRef = useRef<SVGGElement>(null), coneRef = useRef<SVGGElement>(null)
   const fl = house.floors[floor]
   useEffect(() => {
@@ -24,7 +24,7 @@ export function MiniMap({ viewer, house, houseId, floor, room }: { viewer: Viewe
     <div className="panel mapbox">
       <div className="cap"><span>התוכנית המקורית</span><span>לחיצה על המפה מעבירה לשם</span></div>
       <div className="map">
-        <img src={api.houseFile(houseId, fl.map)} alt={`תוכנית ${fl.name}`} />
+        <img src={api.houseFile(houseId, fl.map, share)} alt={`תוכנית ${fl.name}`} />
         <svg ref={svgRef} viewBox="90 80 1070 1400" preserveAspectRatio="none" onClick={onClick} aria-label="מפה. לחיצה מעבירה אותך למקום">
           {fl.rooms.slice(0, fl.indoor).map(r => {
             const x1 = Math.max(r[2], 105), y1 = Math.max(r[3], 105), x2 = Math.min(r[4], 1040), y2 = Math.min(r[5], 1460)
