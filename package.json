@@ -13,7 +13,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "demo": "npm run build -w @planwalk/engine && npm run build:demo -w @planwalk/web && node scripts/serve-demo.mjs",
     "demo:serve": "node scripts/serve-demo.mjs",
-    "test": "npm test -w @planwalk/design"
+    "test": "npm test -w @planwalk/design && npm test -w @planwalk/pipeline"
   },
   "devDependencies": {
     "typescript": "6.0.3",

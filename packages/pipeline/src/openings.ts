@@ -17,6 +17,8 @@ export interface Opening {
   at: number
   /** doors: where the hinge is and which way the leaf swings, as unit steps along / across the wall */
   hinge?: Pt; swing?: Pt
+  /** doors: the two ends of the swing arc — one is the open leaf's tip, the other the jamb it closes on */
+  ends?: [Pt, Pt]
 }
 export interface Tag { c: Pt; r: number }
 
@@ -36,14 +38,15 @@ export function openings(L: PdfLayers, roles: Record<string, Role> = layerRoles(
     if (Math.abs(w - h) > .3 * Math.max(w, h) || Math.max(w, h) < 12) continue      // not a quarter circle of door size
     // quarter arc from a to e: the hinge is the bbox corner equidistant (≈ r) from both ends
     const r = Math.max(w, h)
-    const corners: Pt[] = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]]
-    const hinge = corners.map(c => ({ c, err: Math.abs(Math.hypot(c[0] - a[0], c[1] - a[1]) - r) + Math.abs(Math.hypot(c[0] - e[0], c[1] - e[1]) - r) })).sort((p, q) => p.err - q.err)[0].c
+    // both free bbox corners are r away from the two ends; the hinge is the one the arc bulges away from
+    const corners: Pt[] = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]], mid = s.points[Math.floor(s.points.length / 2)]
+    const hinge = corners.map(c => ({ c, err: Math.abs(Math.hypot(c[0] - a[0], c[1] - a[1]) - r) + Math.abs(Math.hypot(c[0] - e[0], c[1] - e[1]) - r) + Math.abs(Math.hypot(c[0] - mid[0], c[1] - mid[1]) - r) })).sort((p, q) => p.err - q.err)[0].c
     // the closed leaf lies along the wall: the arc end that a straight DOOR-layer line does NOT reach is the jamb
     const leafAt = (p: Pt) => subs.some(t => !t.curved && t.points.length <= 5 && near(t.points, hinge) && near(t.points, p))
     const open = leafAt(a) ? a : leafAt(e) ? e : a, shut = open === a ? e : a
     const axis: 'h' | 'v' = Math.abs(shut[0] - hinge[0]) > Math.abs(shut[1] - hinge[1]) ? 'h' : 'v'
     const from = axis === 'h' ? Math.min(hinge[0], shut[0]) : Math.min(hinge[1], shut[1]), to = axis === 'h' ? Math.max(hinge[0], shut[0]) : Math.max(hinge[1], shut[1])
-    out.push({ kind: 'door', box: b, axis, from, to, at: axis === 'h' ? hinge[1] : hinge[0], hinge, swing: [Math.sign(open[0] - hinge[0]), Math.sign(open[1] - hinge[1])] })
+    out.push({ kind: 'door', box: b, axis, from, to, at: axis === 'h' ? hinge[1] : hinge[0], hinge, swing: [Math.sign(open[0] - hinge[0]), Math.sign(open[1] - hinge[1])], ends: [shut, open] })
   }
 
   // 2. bands of parallel straight lines → glazing

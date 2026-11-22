@@ -81,7 +81,7 @@ export function textLabels(L: PdfLayers, roles = layerRoles(L)): Label[] {
 }
 
 /** Dimension layer: the long lines measurements run along, and the small stroke groups that are the numbers. */
-export function dimLabels(L: PdfLayers, roles = layerRoles(L)): { lines: DimLine[]; labels: Label[] } {
+export function dimLabels(L: PdfLayers, roles = layerRoles(L)): { lines: DimLine[]; labels: Label[]; ticks: Pt[] } {
   const subs = L.paths.filter(p => roles[p.layer] === 'dim').flatMap(p => p.subs.map(s => s.points))
   const lines: DimLine[] = [], small: Array<{ pts: Pt[]; box: Box }> = []
   for (const s of subs) {
@@ -100,6 +100,7 @@ export function dimLabels(L: PdfLayers, roles = layerRoles(L)): { lines: DimLine
     return false
   }
   const digits = small.filter(s => !onLine(s.box))
+  const ticks: Pt[] = small.filter(s => onLine(s.box)).map(s => [(s.box[0] + s.box[2]) / 2, (s.box[1] + s.box[3]) / 2])
   // digits of one number sit closer together than half a digit; which way it reads comes from its dimension line
   const sizes = digits.map(d => Math.max(d.box[2] - d.box[0], d.box[3] - d.box[1])).sort((a, b) => a - b)
   const digit = sizes[Math.floor(sizes.length * .6)] || 4
@@ -118,7 +119,7 @@ export function dimLabels(L: PdfLayers, roles = layerRoles(L)): { lines: DimLine
     if (best > 3 * digit) continue                                   // not written along any dimension line
     labels.push({ id: labels.length, kind: 'dim', box, dir, strokes })
   }
-  return { lines, labels }
+  return { lines, labels, ticks }
 }
 
 /** A PNG of one label, upright (vertical labels are turned a quarter clockwise), letters `px` pixels tall. */
@@ -134,4 +135,11 @@ export function renderLabel(l: Label, px = 44, pad = 10): Buffer {
   const map = ([x, y]: Pt): Pt => (l.dir === 'v' ? [pad + (y2 - y) * s, pad + (x - x1) * s] : [pad + (x - x1) * s, pad + (y - y1) * s])
   for (const st of l.strokes) { g.beginPath(); st.forEach((p, i) => { const [X, Y] = map(p); if (i) g.lineTo(X, Y); else g.moveTo(X, Y) }); g.stroke() }
   return c.toBuffer('image/png')
+}
+
+/** Every label on the sheet in one id space (text first, then dimensions) — the ids read.ts and the saved readings use. */
+export function allLabels(L: PdfLayers, roles = layerRoles(L)) {
+  const text = textLabels(L, roles), d = dimLabels(L, roles)
+  d.labels.forEach(l => { l.id += text.length })
+  return { text, dims: d.labels, lines: d.lines, ticks: d.ticks }
 }

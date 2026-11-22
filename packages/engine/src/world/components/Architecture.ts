@@ -20,22 +20,13 @@ export default class Architecture {
       this._baseboards(b.at('int', f, base), tall, (x, y) => world.inRoom(f, x, y))
       this._glazing(b.at('arch', f, base), fl.glass)
     }
-    if (!legacy) { this._slabs(b, house); return }
+    if (!legacy) return                          // built houses carry their slabs and roof as items
     // slab between floors 1 and 2 (open over the void) and the walkable finish on top of it
     b.at('arch', 2, LEVEL[2])
     b.extrude([[[109, 108], [1040, 108], [1040, 1456], [109, 1456]]], -0.25, 0.25, 'ceil', [house.void])
     b.extrude([[[105, 105], [1040, 105], [1040, 1512], [105, 1512]]], 0, 0.012, 'floor', [house.void])
     // roof over the top floor
     b.at('roof', 2, LEVEL[2]).box(105, 102, 1045, 1612, H, H + 0.3, 'ceil')
-  }
-  /** Generic storeys: a slab under every indoor room of the storey above (floor items carry the finish), a roof over the top. */
-  _slabs(b, house) {
-    for (const f of [1, 2]) {
-      const fl = house.floors[f]; b.at('arch', f, LEVEL[f])
-      for (const r of fl.rooms.slice(0, fl.indoor)) b.box(r[2], r[3], r[4], r[5], -0.25, -0.02, 'ceil')
-    }
-    const top = house.floors[2]; b.at('roof', 2, LEVEL[2])
-    for (const r of top.rooms.slice(0, top.indoor)) b.box(r[2] - 6, r[3] - 6, r[4] + 6, r[5] + 6, H, H + 0.3, 'ceil')
   }
   _baseboards(b, polys, inside) {
     for (const p of polys) for (let i = 0; i < p.length; i++) {

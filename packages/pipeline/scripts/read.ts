@@ -2,14 +2,13 @@
 // Usage: ANTHROPIC_API_KEY=... npx tsx scripts/read.ts plan.pdf outdir
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { readLayers } from '../src/pdf'
-import { layerRoles, textLabels, dimLabels } from '../src/labels'
+import { allLabels } from '../src/labels'
 import { readLabels, asCm } from '../src/read'
 const [, , file, out] = process.argv
 if (!file || !out) { console.error('usage: tsx scripts/read.ts plan.pdf outdir'); process.exit(1) }
 mkdirSync(out, { recursive: true })
 const L = await readLayers(new Uint8Array(readFileSync(file)))
-const roles = layerRoles(L), T = textLabels(L, roles), D = dimLabels(L, roles).labels
-D.forEach(l => { l.id += T.length })                       // one id space for both kinds
+const { text: T, dims: D } = allLabels(L)
 const all = [...T, ...D]
 console.log(`reading ${T.length} text labels and ${D.length} dimensions…`)
 const got = await readLabels(all, { onBatch: (done, total) => console.log(`  ${done}/${total}`) })

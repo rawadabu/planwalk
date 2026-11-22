@@ -27,7 +27,7 @@ export function wallColour(shapes: Shape[]): string | null {
  * Wall polygons grouped into drawings (storeys). Header rules (long thin bars standing apart from everything)
  * are dropped. `gap` = how far apart two pieces of the same drawing may be, in points.
  */
-export function drawings(page: PdfPage, colour: string, gap = 75): Drawing[] {
+export function drawings(page: PdfPage, colour: string, gap = 75, links: Box[] = []): Drawing[] {
   let polys = page.shapes.filter(s => s.fill === colour).map(s => s.points)
   const boxes = () => polys.map(p => bbox([p]))
   // header rules: thin, very long, and nothing else within 25 pt
@@ -39,13 +39,16 @@ export function drawings(page: PdfPage, colour: string, gap = 75): Drawing[] {
       return !(thin && B.every((o, k) => k === i || boxGap(o, B[i]) > 25))
     })
   }
-  // union-find on box proximity
-  const B = boxes(), parent = polys.map((_, i) => i)
+  // union-find on box proximity; `links` (windows, doors) join the wall pieces they sit between but are not walls themselves
+  const B = [...boxes(), ...links], parent = B.map((_, i) => i)
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])))
-  for (let i = 0; i < B.length; i++) for (let k = i + 1; k < B.length; k++) if (boxGap(B[i], B[k]) <= gap) parent[find(i)] = find(k)
+  for (let i = 0; i < B.length; i++) for (let k = i + 1; k < B.length; k++) if (boxGap(B[i], B[k]) <= (i >= polys.length || k >= polys.length ? 12 : gap)) parent[find(i)] = find(k)
   const groups = new Map<number, Poly[]>()
   polys.forEach((p, i) => { const r = find(i); groups.set(r, [...(groups.get(r) ?? []), p]) })
-  return [...groups.values()].filter(g => g.length >= 3).map(walls => ({ walls, box: bbox(walls) })).sort((a, b) => a.box[0] - b.box[0])
+  // a storey is a sizeable drawing; stray wall-coloured bits (legends, north arrows) are not
+  const all = [...groups.values()].map(walls => ({ walls, box: bbox(walls) }))
+  const biggest = Math.max(...all.map(d => (d.box[2] - d.box[0]) * (d.box[3] - d.box[1])))
+  return all.filter(d => (d.box[2] - d.box[0]) * (d.box[3] - d.box[1]) > .15 * biggest).sort((a, b) => a.box[0] - b.box[0])
 }
 
 /** Mirror axis of a twin house (vertical), if the walls are symmetric enough; null otherwise. */
@@ -83,10 +86,10 @@ export function unitOf(d: Drawing, axis: number, side: 'left' | 'right'): Drawin
   return { walls, box: bbox(walls) }
 }
 
-/** x' = sx·x + dx, y' = 3·y + dy: page points → house px for one storey (sx = ±PX_PER_PT; negative = drawn mirrored). */
+/** x' = sx·x + dx, y' = |sx|·y + dy: page points → house px for one storey (sx = ±PX_PER_PT; negative = drawn mirrored). */
 export interface Place { sx: number; dx: number; dy: number }
 export const PX_PER_PT = 3                                   // house@1 px are a 216 dpi render: 216 / 72
-export const placePt = (pl: Place, [x, y]: Pt): Pt => [pl.sx * x + pl.dx, PX_PER_PT * y + pl.dy]
+export const placePt = (pl: Place, [x, y]: Pt): Pt => [pl.sx * x + pl.dx, Math.abs(pl.sx) * y + pl.dy]
 export const placePoly = (pl: Place, p: Poly): Poly => { const q = p.map(v => placePt(pl, v)); return pl.sx < 0 ? q.reverse() : q }
 
 /**
@@ -94,6 +97,7 @@ export const placePoly = (pl: Place, p: Poly): Poly => { const q = p.map(v => pl
  * the shift that makes the most wall corners coincide. Returns the placement and the share of b's corners that matched.
  */
 export function alignTo(a: Drawing, pa: Place, b: Drawing, tol = 4): Place & { match: number } {
+  const PX_PER_PT = Math.abs(pa.sx)                           // same scale as the reference storey
   const ref = a.walls.flat().map(v => placePt(pa, v)), verts = b.walls.flat()
   let best = { sx: PX_PER_PT, dx: 0, dy: 0, match: -1 }
   for (const sx of [PX_PER_PT, -PX_PER_PT]) {
