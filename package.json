@@ -11,7 +11,9 @@
     "build": "npm run build -w @planwalk/house && npm run build -w @planwalk/engine && npm run build -w @planwalk/web && npm run build -w @planwalk/api",
     "start": "npm run start -w @planwalk/api",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "demo": "node scripts/serve-demo.mjs"
+    "demo": "npm run build -w @planwalk/engine && npm run build:demo -w @planwalk/web && node scripts/serve-demo.mjs",
+    "demo:serve": "node scripts/serve-demo.mjs",
+    "test": "npm test -w @planwalk/design"
   },
   "devDependencies": {
     "typescript": "6.0.3",
