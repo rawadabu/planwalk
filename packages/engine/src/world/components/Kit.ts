@@ -116,13 +116,38 @@ export default class Kit {
     b.box(x1 + 21, y1 + 36, x2 - 13, y1 + 44, .33, .37, 'flame')
     this.firePoints.push({ f: b.floor, x: (x1 + x2) / 2 + 9, y: y1 + 40, base: b.base, w: X(x2 - x1 - 34) })
   }
+  // U stair between two storeys: 9 floating oak treads up to the landing, 7 more to the next floor.
+  // Treads run into the wall (cantilevered); one continuous sloped glass balustrade on each open side.
   stairU() {
-    const b = this.b, r = STOREY / 16
-    for (let i = 0; i < 9; i++) { const y2 = 990 - i * 17.8; b.box(805, y2 - 17.8, 975, y2 + 1, (i + 1) * r - .045, (i + 1) * r, 'oak', .004) }
+    const b = this.b, r = STOREY / 16, T = .045
+    for (let i = 0; i < 9; i++) { const y2 = 990 - i * 17.8; b.box(805, y2 - 17.8, 1019, y2 + 1, (i + 1) * r - T, (i + 1) * r, 'oak', .004) }
     b.box(805, 703, 1020, 830, 9 * r - .2, 9 * r, 'oak', .004)
-    for (let i = 0; i < 7; i++) { const x2 = 805 - i * 20; b.box(x2 - 20, 703, x2 + 1, 815, 9 * r + (i + 1) * r - .045, 9 * r + (i + 1) * r, 'oak', .004) }
-    b.box(975, 830, 980, 990, 0, 1.6, 'metal')
-    for (let i = 0; i < 9; i++) { const y2 = 990 - i * 17.8; b.box(803, y2 - 17.8, 805, y2, (i + 1) * r, (i + 1) * r + .9, 'railGlass') }
+    for (let i = 0; i < 7; i++) { const x2 = 805 - i * 20; b.box(x2 - 20, 704, x2 + 1, 815, 9 * r + (i + 1) * r - T, 9 * r + (i + 1) * r, 'oak', .004) }
+    // lower flight, open (west) side: from the first tread up to the landing, then along the landing edge
+    this._glassRun([[990, r], [830, 9 * r], [815, 9 * r]], 'y', 803)
+    // upper flight, open (south) side, over the planter: landing → top floor
+    this._glassRun([[805, 9 * r], [665, 16 * r]], 'x', 816)
+  }
+  // A sloped glass balustrade 1 m above the tread nosings. pts = [along, height][] along x or y; at = the fixed coordinate.
+  _glassRun(pts, axis, at) {
+    const b = this.b, HGT = .95, TH = .012
+    const pos: number[] = [], idx: number[] = []
+    const P = (a, h) => (axis === 'y' ? [X(at), b.base + h, Z(a)] : [X(a), b.base + h, Z(at)])
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [a0, h0] = pts[i], [a1, h1] = pts[i + 1], n = pos.length / 3
+      for (const [a, h] of [[a0, h0], [a1, h1], [a1, h1 + HGT], [a0, h0 + HGT]]) pos.push(...P(a, h))
+      idx.push(n, n + 1, n + 2, n, n + 2, n + 3, n, n + 2, n + 1, n, n + 3, n + 2)   // both faces
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx)   // normals are computed per face after the batcher de-indexes it
+    b.add(g, 'railGlass')
+    // slim handrail cap along the top edge
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [a0, h0] = pts[i], [a1, h1] = pts[i + 1], p0 = new THREE.Vector3(...P(a0, h0 + HGT)), p1 = new THREE.Vector3(...P(a1, h1 + HGT))
+      const len = p0.distanceTo(p1), cap = new THREE.BoxGeometry(TH * 3, .03, len)
+      cap.applyMatrix4(new THREE.Matrix4().lookAt(p0, p1, new THREE.Vector3(0, 1, 0)))
+      cap.translate((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, (p0.z + p1.z) / 2)
+      b.add(cap, 'metal')
+    }
   }
   dispose() {}
 }
