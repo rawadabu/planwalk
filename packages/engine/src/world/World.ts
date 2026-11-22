@@ -54,10 +54,10 @@ export default class World {
 
   updateVisibility() {
     if (!this.ready) return
-    const { floor, mode } = this.experience.state, top = mode === 'top'
-    this.groups.arch.forEach((g, i) => { g.visible = !top || i <= floor })
+    const { floor, mode } = this.experience.state, top = mode === 'top', outside = mode === 'outside'
+    this.groups.arch.forEach((g, i) => { g.visible = outside || !top || i <= floor })
     const seeInt = { 0: [0], 1: [1, 2], 2: [1, 2] }[floor]
-    this.groups.int.forEach((g, i) => { g.visible = top ? i <= floor && i >= floor - 1 : seeInt.includes(i) })
+    this.groups.int.forEach((g, i) => { g.visible = outside ? i > 0 : top ? i <= floor && i >= floor - 1 : seeInt.includes(i) })
     this.groups.roof.visible = !top
     this.environment.placeLamps(floor)
   }

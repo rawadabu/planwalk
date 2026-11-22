@@ -34,6 +34,11 @@ export default function ProjectPage() {
       </section>
 
       <section>
+        <h2>Location</h2>
+        <LocationForm p={p} canEdit={can('edit')} onDone={load} />
+      </section>
+
+      <section>
         <h2>Units</h2>
         <UnitsTable p={p} canEditUnits={can('unit')} canAdd={can('edit')} onChange={load} />
       </section>
@@ -161,6 +166,39 @@ function UploadForm({ projectId, onDone }: { projectId: string; onDone: () => vo
     }}>
       <label htmlFor="pdf">Architect's plans (PDF, up to 50 MB)</label>
       <div><input id="pdf" name="pdf" type="file" accept="application/pdf" required /><button className="btn sm primary" disabled={busy}>{busy ? 'Uploading…' : 'Upload'}</button></div>
+      {msg && <p className={msg.ok ? 'ok' : 'bad'} role="status">{msg.text}</p>}
+    </form>
+  )
+}
+
+// Address → coordinates (for the real sun path in the walkthrough) and which way the plan faces.
+function LocationForm({ p, canEdit, onDone }: { p: ProjectDetail; canEdit: boolean; onDone: () => void }) {
+  const [address, setAddress] = useState(p.address ?? ''), [lat, setLat] = useState(p.lat?.toString() ?? ''), [lng, setLng] = useState(p.lng?.toString() ?? '')
+  const [north, setNorth] = useState((p.northDeg ?? 0).toString())
+  const [hits, setHits] = useState<Array<{ label: string; lat: number; lng: number }>>([]), [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null), [busy, setBusy] = useState(false)
+  if (!canEdit) return <p className="empty">{p.lat != null ? `${p.address ?? ''} (${p.lat.toFixed(4)}, ${p.lng?.toFixed(4)}) · plan north ${p.northDeg ?? 0}°` : 'No location yet.'}</p>
+  const search = async () => {
+    setBusy(true); setMsg(null); setHits([])
+    try { const r = await api.geocode(address); setHits(r); if (!r.length) setMsg({ ok: false, text: 'No match. Try the city and street, or type the coordinates.' }) }
+    catch (e) { setMsg({ ok: false, text: (e as Error).message }) } finally { setBusy(false) }
+  }
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault(); setMsg(null)
+    const la = lat.trim() ? Number(lat) : null, ln = lng.trim() ? Number(lng) : null, n = Number(north) || 0
+    if ((la == null) !== (ln == null) || (la != null && (isNaN(la) || isNaN(ln!)))) { setMsg({ ok: false, text: 'Enter both latitude and longitude, as numbers.' }); return }
+    try { await api.updateProject(p.id, { address: address.trim() || null, lat: la, lng: ln, northDeg: n }); setMsg({ ok: true, text: 'Saved. The walkthrough now shows the real sun for this place.' }); onDone() }
+    catch (err) { setMsg({ ok: false, text: (err as Error).message }) }
+  }
+  return (
+    <form className="locform" onSubmit={save}>
+      <label>Address<span className="inline"><input value={address} onChange={e => setAddress(e.target.value)} placeholder="Street, city" /><button type="button" className="btn sm" disabled={busy || address.trim().length < 3} onClick={search}>{busy ? 'Searching…' : 'Find'}</button></span></label>
+      {hits.length > 0 && <ul className="hits">{hits.map((h, i) => <li key={i}><button type="button" onClick={() => { setLat(h.lat.toFixed(6)); setLng(h.lng.toFixed(6)); setHits([]) }}>{h.label}</button></li>)}</ul>}
+      <div className="grid3">
+        <label>Latitude<input inputMode="decimal" value={lat} onChange={e => setLat(e.target.value)} placeholder="32.1663" /></label>
+        <label>Longitude<input inputMode="decimal" value={lng} onChange={e => setLng(e.target.value)} placeholder="34.8433" /></label>
+        <label>North on the plan<input inputMode="decimal" value={north} onChange={e => setNorth(e.target.value)} placeholder="0" /><small>degrees clockwise from the top of the sheet (the north arrow)</small></label>
+      </div>
+      <button className="btn sm primary">Save location</button>
       {msg && <p className={msg.ok ? 'ok' : 'bad'} role="status">{msg.text}</p>}
     </form>
   )

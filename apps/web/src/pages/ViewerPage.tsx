@@ -5,6 +5,11 @@ import { MiniMap } from '../viewer/MiniMap'
 import { Toolbar } from '../viewer/Toolbar'
 import { MeasureLabel } from '../viewer/MeasureLabel'
 import { Joystick } from '../viewer/Joystick'
+import { AreasPanel } from '../viewer/Areas'
+import { SunPanel } from '../viewer/SunPanel'
+import { CommentsPanel, CommentPins, useComments } from '../viewer/Comments'
+import { type Drawer } from '../viewer/Toolbar'
+import { api, type HouseMeta } from '../api'
 import '../styles/viewer.css'
 
 // Walkthrough of one house: full-screen canvas (engine) + React HUD (Hebrew, RTL).
@@ -16,6 +21,12 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
   useEffect(() => { viewer?.setMeasuring(measuring) }, [viewer, measuring])
   useEffect(() => { document.title = ui.house ? `${ui.house.title} · Planwalk` : 'Planwalk' }, [ui.house])
   const floorName = ui.house?.floors[ui.floor].name
+  const [drawer, setDrawer] = useState<Drawer>(null)
+  const [meta, setMeta] = useState<HouseMeta | null>(null)
+  useEffect(() => { api.houseMeta(houseId, share).then(setMeta).catch(() => setMeta(null)) }, [houseId, share])
+  const comments = useComments(houseId, share, meta)
+  const [selected, setSelected] = useState<string | null>(null)
+  const openCount = comments.list.filter(c => !c.parentId && !c.resolved).length
 
   return (
     <div className="viewer">
@@ -41,7 +52,11 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
           )}
           {measuring && <div className="panel mhint">מדידה: לחץ על שתי נקודות ברצפה</div>}
           <MeasureLabel viewer={viewer} />
-          <Toolbar viewer={viewer} ui={ui} measuring={measuring} setMeasuring={setMeasuring} />
+          <CommentPins viewer={viewer} comments={comments.list} floor={ui.floor} mode={ui.mode} selected={selected} onSelect={c => { setSelected(c.id); setDrawer('comments') }} />
+          {drawer === 'areas' && <AreasPanel house={ui.house} floor={ui.floor} onClose={() => setDrawer(null)} />}
+          {drawer === 'sun' && meta && <SunPanel viewer={viewer} meta={meta} onClose={() => setDrawer(null)} />}
+          {drawer === 'comments' && meta && <CommentsPanel viewer={viewer} house={ui.house} houseId={houseId} share={share} meta={meta} floor={ui.floor} state={comments} selected={selected} setSelected={setSelected} onClose={() => setDrawer(null)} />}
+          <Toolbar viewer={viewer} ui={ui} measuring={measuring} setMeasuring={setMeasuring} drawer={drawer} setDrawer={setDrawer} commentCount={openCount} />
           <div className="panel hint">הליכה: <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> או חיצים · גרירה כדי להסתכל · <kbd>Shift</kbd> מהר יותר</div>
           <Joystick viewer={viewer} />
         </>

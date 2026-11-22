@@ -63,6 +63,36 @@ export async function projectRoutes(app: FastifyInstance) {
     return { ...ctx.project, role: ctx.role, buildings, units, houses, uploads }
   })
 
+  // Location (address → lat/lng) and plan orientation, for the real sun path
+  const ProjectPatch = z.object({
+    name: z.string().trim().min(1).max(120).optional(), address: z.string().trim().max(200).nullable().optional(),
+    lat: z.number().min(-90).max(90).nullable().optional(), lng: z.number().min(-180).max(180).nullable().optional(),
+    northDeg: z.number().min(-360).max(360).nullable().optional(),
+  })
+  app.patch<{ Params: { id: string } }>('/api/projects/:id', async (req, reply) => {
+    const ctx = await requireProject(req, reply, req.params.id, 'project', 'update'); if (!ctx) return
+    const b = ProjectPatch.safeParse(req.body)
+    if (!b.success) return reply.code(400).send({ error: 'Check the project details' })
+    const [row] = await db.update(project).set({ ...b.data, updatedAt: new Date() }).where(eq(project.id, ctx.project.id)).returning()
+    return row
+  })
+
+  // Address search (OpenStreetMap Nominatim). Signed-in users only; results are suggestions the user confirms.
+  app.get<{ Querystring: { q?: string } }>('/api/geocode', async (req, reply) => {
+    const s = await requireUser(req, reply); if (!s) return
+    const q = (req.query.q ?? '').trim()
+    if (q.length < 3 || q.length > 200) return reply.code(400).send({ error: 'Type an address' })
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=he,en&q=${encodeURIComponent(q)}`,
+        { headers: { 'user-agent': 'Planwalk/0.1 (address lookup)' }, signal: AbortSignal.timeout(6000) })
+      if (!r.ok) throw new Error(String(r.status))
+      const list = (await r.json()) as Array<{ display_name: string; lat: string; lon: string }>
+      return list.map(x => ({ label: x.display_name, lat: +x.lat, lng: +x.lon }))
+    } catch {
+      return reply.code(502).send({ error: "Address search isn't reachable right now. You can type the coordinates instead." })
+    }
+  })
+
   app.post<{ Params: { id: string } }>('/api/projects/:id/units', async (req, reply) => {
     const ctx = await requireProject(req, reply, req.params.id, 'project', 'update'); if (!ctx) return
     const body = CreateUnit.safeParse(req.body)

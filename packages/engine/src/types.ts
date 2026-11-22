@@ -1,8 +1,8 @@
 import type { House, RoomTuple, StoreyId } from '@planwalk/house'
 
 export type Quality = 'high' | 'medium' | 'low'
-export type TimeOfDay = 'morning' | 'noon' | 'golden' | 'evening'
-export type Mode = 'walk' | 'top' | 'trans'
+export type TimeOfDay = 'morning' | 'noon' | 'golden' | 'evening' | 'custom'
+export type Mode = 'walk' | 'top' | 'outside' | 'trans'
 
 export interface ViewerOptions {
   canvas: HTMLCanvasElement
@@ -18,6 +18,10 @@ export interface ViewerOptions {
 }
 
 export interface Pose { x: number; y: number; yaw: number; floor: StoreyId }
+/** A point in the house: storey, plan pixels (x, y) and height above that storey's floor in metres */
+export interface PlanPoint { floor: StoreyId; x: number; y: number; h: number }
+/** Where the sun is for a real place and moment. north = plan angle of true north, degrees clockwise from the top of the sheet */
+export interface SunAt { date: Date; lat: number; lng: number; north?: number }
 export interface MeasureReading { cm: number; screen: { x: number; y: number }; visible: boolean }
 
 /** Events the viewer emits. The UI subscribes with viewer.on(name, handler). */
@@ -34,14 +38,26 @@ export interface ViewerEvents {
   quality: (q: Quality) => void
   time: (t: TimeOfDay) => void
   lights: (on: boolean) => void
+  /** Every frame, after the camera moved and before drawing (for DOM overlays that follow 3D points) */
+  frame: (dt: number) => void
+  /** A click/tap on the canvas that wasn't a drag */
+  tap: (p: { clientX: number; clientY: number }) => void
+  /** Sun moved (custom time): azimuth from true north and elevation, degrees */
+  sun: (s: { az: number; el: number }) => void
 }
 
 export interface Viewer {
   on<K extends keyof ViewerEvents>(event: K, handler: ViewerEvents[K]): () => void
   readonly state: { mode: Mode; floor: StoreyId; quality: Quality; time: TimeOfDay; lights: boolean; headBob: boolean }
   setFloor(floor: StoreyId): void
-  setMode(mode: 'walk' | 'top'): void
-  setTime(t: TimeOfDay): void
+  setMode(mode: 'walk' | 'top' | 'outside'): void
+  setTime(t: Exclude<TimeOfDay, 'custom'>): void
+  /** Real sun for a place, date and hour (switches time to 'custom') */
+  setSunAt(s: SunAt): { az: number; el: number }
+  /** The surface point under a screen position, or null */
+  pick(clientX: number, clientY: number): PlanPoint | null
+  /** Screen position (CSS px, relative to the canvas) of a house point; visible = in front of the camera */
+  toScreen(p: PlanPoint): { x: number; y: number; visible: boolean }
   setQuality(q: Quality): void
   setLights(on: boolean): void
   setHeadBob(on: boolean): void

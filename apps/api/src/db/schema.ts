@@ -146,3 +146,21 @@ export const shareLink = pgTable('share_link', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
 }, t => [index('share_house_idx').on(t.houseId)])
+
+/** A note pinned to a spot in a house (floor + plan px + height). Threads: replies have parentId. */
+export const comment = pgTable('comment', {
+  id: text('id').primaryKey(),
+  houseId: text('house_id').notNull().references(() => house.id, { onDelete: 'cascade' }),
+  parentId: text('parent_id'),
+  authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),
+  authorName: text('author_name').notNull(),            // signed-in name, or the name a share-link guest typed
+  shareLinkId: text('share_link_id').references(() => shareLink.id, { onDelete: 'set null' }),
+  body: text('body').notNull(),
+  floor: integer('floor').notNull(),
+  x: real('x').notNull(),
+  y: real('y').notNull(),
+  h: real('h').notNull().default(0),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolvedBy: text('resolved_by').references(() => user.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('comment_house_idx').on(t.houseId)])

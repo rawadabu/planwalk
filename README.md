@@ -79,3 +79,10 @@ per-frame ones (`pose`, `measure`) are written straight to DOM refs so React doe
 - [ ] S3/R2 storage + CDN for the library
 - [ ] Furniture library v2 (beds, bath, appliances) generated once, reused by every house
 - [ ] Tighten engine types (`noImplicitAny` is off for the ported internals; public API is typed)
+
+## Phase 2 — in the walkthrough
+
+- **Areas** (`שטחים`): every room per storey, from the architect's written dimensions; rooms without dimensions are measured from the drawing (marked *). Balconies separately.
+- **Outside view** (`מבחוץ`): orbit the whole house from the garden.
+- **Real sun** (`שמש אמיתית`): the project's address (lat/lng) + plan north → sun position for any date and hour, or play the whole day. Set it on the project page → Location. Address search uses OpenStreetMap Nominatim.
+- **Comments** (`הערות`): pin a note to a spot in the house; replies; resolve. Org members comment by role (viewer: write · sales/architect: + resolve · owner/admin: + delete). Share links with the *comment* permission let buyers comment with their name; view-only links and the public demo can't.

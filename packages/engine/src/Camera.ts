@@ -14,7 +14,7 @@ export default class Camera {
     this.instance = new THREE.PerspectiveCamera(62, sizes.width / sizes.height, 0.05, 300)
     scene.add(this.instance)
     this.orbit = new OrbitControls(this.instance, canvas)
-    Object.assign(this.orbit, { enabled: false, enableDamping: true, maxPolarAngle: Math.PI * .47, minDistance: 4, maxDistance: 32 })
+    Object.assign(this.orbit, { enabled: false, enableDamping: true, maxPolarAngle: Math.PI * .47, minDistance: 4, maxDistance: 45 })
     this.orbit.target.set(X(575), 0, Z(840))
     this.tween = null
     this.reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -27,6 +27,13 @@ export default class Camera {
   topPose(floorY) {
     this.orbit.target.set(X(575), floorY, Z(840))
     const pos = new THREE.Vector3(X(575), floorY + 15.5, Z(1720))
+    const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(pos, this.orbit.target, THREE.Object3D.DEFAULT_UP))
+    return { pos, q }
+  }
+  // Whole house from the garden (south-west, above the hedge)
+  outsidePose() {
+    this.orbit.target.set(X(575), 2.2, Z(840))
+    const pos = new THREE.Vector3(X(575) - 15, 8.5, Z(840) + 19)
     const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(pos, this.orbit.target, THREE.Object3D.DEFAULT_UP))
     return { pos, q }
   }

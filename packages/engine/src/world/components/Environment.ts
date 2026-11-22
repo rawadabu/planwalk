@@ -11,6 +11,19 @@ export const TIMES = {
   golden:  { az: 248, el: 17, color: 0xffbf7e, sun: 7, exp: 1.12, env: .45, hemi: .14, bg: 1.0 },
   evening: { az: 255, el: 12, color: 0xffad6e, sun: 2.6, exp: 1.0, env: .3, hemi: .08, bg: .8 },
 }
+// Look by sun elevation (degrees), between the presets above
+const KEYS = [
+  { el: -6, color: 0x8ea4d8, sun: 0, exp: .95, env: .1, hemi: .03, bg: .18 },
+  { el: 2, color: 0xff9a5a, sun: 1.6, exp: 1.0, env: .25, hemi: .06, bg: .6 },
+  { ...TIMES.evening, el: 12 }, { ...TIMES.golden, el: 17 }, { ...TIMES.morning, el: 24 },
+  { ...TIMES.noon, el: 52 }, { ...TIMES.noon, el: 90 },
+]
+function lookFor(el) {
+  let i = 1; while (i < KEYS.length - 1 && KEYS[i].el < el) i++
+  const a = KEYS[i - 1], b = KEYS[i], f = Math.max(0, Math.min(1, (el - a.el) / (b.el - a.el)))
+  const mix = (p, q) => p + (q - p) * f
+  return { color: new THREE.Color(a.color).lerp(new THREE.Color(b.color), f), sun: mix(a.sun, b.sun), exp: mix(a.exp, b.exp), env: mix(a.env, b.env), hemi: mix(a.hemi, b.hemi), bg: mix(a.bg, b.bg) }
+}
 export default class Environment {
   [key: string]: any
   constructor(world, resources, renderer, kit) {
@@ -51,19 +64,30 @@ export default class Environment {
     this.setTime(world.experience.state.time)
   }
   setTime(k) {
-    const t = TIMES[k], exp = this.world.experience, r = exp.renderer
+    const t = TIMES[k]
+    this._apply(t.az, t.el, t, k)
+  }
+  // Real sun (custom time): azimuth in the PLAN frame (0 = top of the sheet, clockwise), elevation in degrees.
+  // Look values are interpolated from the tuned presets by elevation; below the horizon it is night.
+  setSun(az, el) {
+    const t = lookFor(el)
+    this._apply(az, Math.max(el, 2), t, 'custom')
+    if (el < -2 && !this.world.experience.state.lights) this.setLights(true)
+  }
+  _apply(azDeg, elDeg, t, k) {
+    const exp = this.world.experience, r = exp.renderer
     exp.state.time = k
-    const az = THREE.MathUtils.degToRad(t.az), el = THREE.MathUtils.degToRad(t.el)
+    const az = THREE.MathUtils.degToRad(azDeg), el = THREE.MathUtils.degToRad(elDeg)
     const dir = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el))   // +z = south, +x = east
     this.sun.position.copy(this.center).addScaledVector(dir, 30)
-    this.sun.color.setHex(t.color); this.sun.intensity = t.sun
+    this.sun.color.set(t.color); this.sun.intensity = t.sun
     for (const c of this.canopies.children) c.lookAt(c.position.clone().add(dir))
     r.instance.toneMappingExposure = t.exp
     const scene = this.world.scene
     scene.environmentIntensity = t.env; scene.backgroundIntensity = t.bg
     this.hemi.intensity = t.hemi
     const M = this.world.materials.list
-    M.ledStrip.emissiveIntensity = k === 'evening' ? 6 : k === 'golden' ? 3.5 : 1.5
+    M.ledStrip.emissiveIntensity = k === 'evening' || t.sun < 1 ? 6 : k === 'golden' || t.sun > 5 ? 3.5 : 1.5
     if (k === 'evening' && !exp.state.lights) this.setLights(true)
     r.requestShadowUpdate()
     exp.trigger('time', k)

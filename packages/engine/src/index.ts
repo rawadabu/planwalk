@@ -1,7 +1,12 @@
 import Experience from './Experience'
+import * as THREE from 'three'
 import type { Viewer, ViewerEvents, ViewerOptions } from './types'
+import { sunPosition } from './sun'
+import { K, X, Z, LEVEL } from './world/units'
+import type { StoreyId } from '@planwalk/house'
 
 export type * from './types'
+export { sunPosition }
 
 /**
  * Create a viewer on a canvas. One viewer per page (the engine is a singleton);
@@ -28,6 +33,28 @@ export function createViewer(options: ViewerOptions): Viewer {
     setFloor: f => exp.player.setFloor(f, exp.world.house?.floors[f].start),
     setMode: m => { if (m !== exp.state.mode) exp.player.setMode(m) },
     setTime: t => exp.world.environment?.setTime(t),
+    setSunAt: ({ date, lat, lng, north = 0 }) => {
+      const s = sunPosition(date, lat, lng)
+      exp.world.environment?.setSun(s.az + north, s.el)
+      exp.trigger('sun', s)
+      return s
+    },
+    pick: (cx, cy) => {
+      const cam = exp.camera.instance, r = exp.canvas.getBoundingClientRect()
+      const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2((cx - r.left) / r.width * 2 - 1, -(cy - r.top) / r.height * 2 + 1), cam)
+      const targets: THREE.Object3D[] = []
+      for (const g of [...exp.world.groups.arch, ...exp.world.groups.int, exp.world.groups.roof]) if (g.visible) g.traverseVisible((o: THREE.Object3D) => { if ((o as THREE.Mesh).isMesh) targets.push(o) })
+      const hit = ray.intersectObjects(targets, false).find(h => !(h.object as THREE.Mesh).userData?.noPick)
+      if (!hit) return null
+      const p = hit.point
+      const floor = ([2, 1, 0] as StoreyId[]).find(f => p.y >= LEVEL[f] - 0.05) ?? 0
+      return { floor, x: Math.round(p.x / K), y: Math.round(p.z / K), h: Math.max(0, +(p.y - LEVEL[floor]).toFixed(2)) }
+    },
+    toScreen: ({ floor, x, y, h }) => {
+      const r = exp.canvas.getBoundingClientRect()
+      const v = new THREE.Vector3(X(x), LEVEL[floor] + h, Z(y)).project(exp.camera.instance)
+      return { x: (v.x + 1) / 2 * r.width, y: (1 - v.y) / 2 * r.height, visible: v.z < 1 && Math.abs(v.x) < 1.05 && Math.abs(v.y) < 1.05 }
+    },
     setQuality: q => exp.renderer.setQuality(q),
     setLights: on => exp.world.environment?.setLights(on),
     setHeadBob: on => { exp.state.headBob = on },

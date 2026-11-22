@@ -11,18 +11,19 @@ export const statements = {
   upload: ['create'],
   unit: ['update'],
   share: ['create', 'revoke'],
+  comment: ['create', 'resolve', 'delete'],
 } as const
 export const ac = createAccessControl(statements)
 
 export const roles = {
-  owner: ac.newRole({ ...ownerAc.statements, project: ['read', 'create', 'update', 'delete'], upload: ['create'], unit: ['update'], share: ['create', 'revoke'] }),
-  admin: ac.newRole({ ...adminAc.statements, project: ['read', 'create', 'update', 'delete'], upload: ['create'], unit: ['update'], share: ['create', 'revoke'] }),
-  architect: ac.newRole({ ...memberAc.statements, project: ['read', 'create', 'update'], upload: ['create'], share: ['create', 'revoke'] }),
-  sales: ac.newRole({ ...memberAc.statements, project: ['read'], unit: ['update'], share: ['create', 'revoke'] }),
-  viewer: ac.newRole({ ...memberAc.statements, project: ['read'] }),
+  owner: ac.newRole({ ...ownerAc.statements, project: ['read', 'create', 'update', 'delete'], upload: ['create'], unit: ['update'], share: ['create', 'revoke'], comment: ['create', 'resolve', 'delete'] }),
+  admin: ac.newRole({ ...adminAc.statements, project: ['read', 'create', 'update', 'delete'], upload: ['create'], unit: ['update'], share: ['create', 'revoke'], comment: ['create', 'resolve', 'delete'] }),
+  architect: ac.newRole({ ...memberAc.statements, project: ['read', 'create', 'update'], upload: ['create'], share: ['create', 'revoke'], comment: ['create', 'resolve'] }),
+  sales: ac.newRole({ ...memberAc.statements, project: ['read'], unit: ['update'], share: ['create', 'revoke'], comment: ['create', 'resolve'] }),
+  viewer: ac.newRole({ ...memberAc.statements, project: ['read'], comment: ['create'] }),
 }
 export type Role = keyof typeof roles
-export type Resource = 'project' | 'upload' | 'unit' | 'share'
+export type Resource = 'project' | 'upload' | 'unit' | 'share' | 'comment'
 
 export function can(role: string, resource: Resource, action: string): boolean {
   const r = roles[role as Role]

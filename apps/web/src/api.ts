@@ -8,9 +8,18 @@ export interface ProjectRow { id: string; organizationId: string; name: string; 
 export interface Unit { id: string; number: string; buildingId: string | null; houseId: string | null; floor: number | null; rooms: number | null; areaM2: number | null; status: UnitStatus; priceIls: number | null }
 export interface HouseRow { id: string; title: string; public: boolean; projectId: string | null }
 export interface Upload { id: string; fileName: string; sizeBytes: number; status: string; createdAt: string }
-export interface ProjectDetail extends Omit<ProjectRow, 'units' | 'houses'> { role: string; buildings: Array<{ id: string; name: string }>; units: Unit[]; houses: HouseRow[]; uploads: Upload[] }
+export interface ProjectDetail extends Omit<ProjectRow, 'units' | 'houses'> { role: string; lat: number | null; lng: number | null; northDeg: number | null; buildings: Array<{ id: string; name: string }>; units: Unit[]; houses: HouseRow[]; uploads: Upload[] }
 export interface ShareRow { id: string; permission: 'view' | 'comment'; label: string | null; expiresAt: string | null; createdAt: string; revokedAt: string | null }
 export interface NewShare extends Omit<ShareRow, 'createdAt' | 'revokedAt'> { token: string; path: string }
+
+export interface HouseMeta {
+  id: string; title: string
+  location: { address: string | null; lat: number; lng: number; north: number } | null
+  viewer: { signedIn: boolean; name: string | null; role: string | null; via: 'member' | 'share' | 'public' }
+  can: { comment: boolean; resolve: boolean }
+}
+export interface Comment { id: string; parentId: string | null; authorName: string; body: string; floor: 0 | 1 | 2; x: number; y: number; h: number; resolved: boolean; createdAt: string; mine: boolean }
+export interface ProjectLocation { address?: string | null; lat?: number | null; lng?: number | null; northDeg?: number | null; name?: string }
 
 export class ApiError extends Error { constructor(message: string, public status: number) { super(message) } }
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -21,6 +30,9 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T
 }
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) })
+const shareHdr = (share?: string): RequestInit => (share ? { headers: { 'x-share-token': share } } : {})
+// The demo house in the static build: same location as the seeded demo project, read-only
+const DEMO_META: HouseMeta = { id: 'twin-a', title: 'בית דו־משפחתי · יחידה א׳', location: { address: 'Herzliya, Israel', lat: 32.1663, lng: 34.8433, north: 0 }, viewer: { signedIn: false, name: null, role: null, via: 'public' }, can: { comment: false, resolve: false } }
 
 export const api = {
   me: () => req<Me>('/api/me'),
@@ -35,6 +47,14 @@ export const api = {
   createShare: (houseId: string, b: { permission: 'view' | 'comment'; expiresInDays: number | null; label?: string }) => req<NewShare>(`/api/houses/${houseId}/shares`, json('POST', b)),
   revokeShare: (id: string) => req<void>(`/api/shares/${id}`, { method: 'DELETE' }),
   resolveShare: (token: string) => req<{ houseId: string; title: string; permission: string; expiresAt: string | null }>(`/api/share/${encodeURIComponent(token)}`),
+  updateProject: (id: string, b: ProjectLocation) => req<ProjectRow>(`/api/projects/${id}`, json('PATCH', b)),
+  geocode: (q: string) => req<Array<{ label: string; lat: number; lng: number }>>(`/api/geocode?q=${encodeURIComponent(q)}`),
+  houseMeta: (id: string, share?: string) => (STATIC ? Promise.resolve({ ...DEMO_META, id }) : req<HouseMeta>(`/api/houses/${id}/meta`, shareHdr(share))),
+  comments: (id: string, share?: string) => (STATIC ? Promise.resolve([] as Comment[]) : req<Comment[]>(`/api/houses/${id}/comments`, shareHdr(share))),
+  addComment: (id: string, b: { body: string; floor: number; x: number; y: number; h: number; parentId?: string; authorName?: string }, share?: string) =>
+    req<Comment>(`/api/houses/${id}/comments`, { ...json('POST', b), ...shareHdr(share) }),
+  resolveComment: (id: string, resolved: boolean) => req<Comment>(`/api/comments/${id}`, json('PATCH', { resolved })),
+  deleteComment: (id: string, share?: string) => req<void>(`/api/comments/${id}`, { method: 'DELETE', ...shareHdr(share) }),
   houseUrl: (id: string, share?: string) => STATIC ? `./houses/${id}/house.json` : `/api/houses/${id}/house.json${share ? `?share=${encodeURIComponent(share)}` : ''}`,
   houseFile: (id: string, file: string, share?: string) => STATIC ? `./houses/${id}/${file}` : `/api/houses/${id}/${file}${share ? `?share=${encodeURIComponent(share)}` : ''}`,
   libraryUrl: STATIC ? './library/' : '/api/library/',

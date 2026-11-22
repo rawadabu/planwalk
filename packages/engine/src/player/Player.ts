@@ -51,9 +51,10 @@ export default class Player {
   }
   setMode(m) {
     const exp = this.experience, cam = this.camera
-    if (m === 'top') {
-      exp.setMode('top')
-      cam.tweenTo(cam.topPose(LEVEL[exp.state.floor]), 1.3, () => { cam.orbit.enabled = true })
+    if (m === 'top' || m === 'outside') {
+      cam.orbit.enabled = false
+      exp.setMode(m)
+      cam.tweenTo(m === 'top' ? cam.topPose(LEVEL[exp.state.floor]) : cam.outsidePose(), 1.3, () => { cam.orbit.enabled = true })
     } else {
       cam.orbit.enabled = false
       exp.setMode('trans')
@@ -66,6 +67,7 @@ export default class Player {
     const spot = this.collision.free(f, a.x, a.y) || a
     Object.assign(this.p, { x: spot.x, y: spot.y, vx: 0, vy: 0 }); this.look.yaw = a.yaw ?? this.look.yaw; this.look.pitch = -0.05
     if (exp.state.mode === 'top') { this.camera.orbit.enabled = false; this.camera.tweenTo(this.camera.topPose(LEVEL[f]), .9, () => { this.camera.orbit.enabled = true }) }
+    else if (exp.state.mode === 'outside') { /* stay outside; the storey only matters once you walk in */ }
     else if (from !== f) { exp.setMode('trans'); this.camera.tweenTo(() => this.walkPose(), 1.0, () => exp.setMode('walk')) }
   }
   teleportTo(x, y) {
