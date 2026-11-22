@@ -111,3 +111,8 @@ Sizes: base 87 cm + 3 cm worktop, depth 60, tall 220, wall units 70 cm high from
 `packages/design/src/cost.ts`: `costReport(base, design, prices)` → lines grouped by room / kitchen / changes, net, VAT, total, the architect's base total and the upgrade over it.
 Quantities come from the edited house: floor and ceiling m² (written dimensions first), wall m² = perimeter × 2.8 m − windows on the room's edges, kitchen modules by type and width (fronts multiplier per joinery finish), worktop and installation per metre, window changes (fee + extra glazed m²), moved partitions per m² of wall, frame recolour.
 Price book per organisation (`price_book` table, `GET/PUT /api/orgs/:org/prices`, owner/admin edit, strict validation) over example defaults; the house meta carries it to the viewer. UI: live cost line in the Design and Kitchen panels, a Cost panel (budget, breakdown, change per room), and Price book in the app.
+
+## Carpenter drawings (sheet A-07)
+
+`packages/design/src/shop.ts`: `cabinets(run)` (mm sizes, fronts, hinges, runners, handles, legs, shelves), `panels()` (every board with edge banding, merged), `nest()` (shelf packing on 2800×2070 boards, 4 mm kerf, 10 mm trim, grain kept on fronts), `worktop()` (pieces ≤ 3000 mm split at a unit joint, sink/hob cut-outs), `hardware()`.
+Page `/h/:id/sheets` (A3 landscape, Hebrew): K-01 materials & quantities, K-02 plan + elevation with dimension chains (as seen from the front), cabinet schedule, cut list, board layouts, worktop. "הורדת PDF" uses the browser's PDF printer (vector, works in the static demo). Opened from the Kitchen panel ("PDF לנגר") or `?design=<id>` for a saved design.

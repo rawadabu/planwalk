@@ -9,6 +9,7 @@ import Landing from './pages/Landing'
 const ViewerPage = lazy(() => import('./pages/ViewerPage'))
 const SharePage = lazy(() => import('./pages/SharePage'))
 const StoryPage = lazy(() => import('./pages/StoryPage'))
+const SheetsPage = lazy(() => import('./pages/SheetsPage'))
 import AuthPage from './pages/AuthPage'
 import AppShell from './pages/app/AppShell'
 import Projects from './pages/app/Projects'
@@ -24,6 +25,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/" element={<Landing />} />
         <Route path="/h/:houseId" element={<Suspense fallback={null}><ViewerPage /></Suspense>} />
         <Route path="/h/:houseId/story" element={<Suspense fallback={null}><StoryPage /></Suspense>} />
+        <Route path="/h/:houseId/sheets" element={<Suspense fallback={null}><SheetsPage /></Suspense>} />
         <Route path="/s/:token" element={<Suspense fallback={null}><SharePage /></Suspense>} />
         <Route path="/login" element={<AuthPage mode="signin" />} />
         <Route path="/signup" element={<AuthPage mode="signup" />} />

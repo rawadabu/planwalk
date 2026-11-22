@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseHouse } from '@planwalk/house'
-import { costReport, roomQuantities, DEFAULT_PRICES, priceBook, autoFill, checkRun, runsFromPlan, runUsed, runFootprint, windowsBehind, applyEdits, editKey, findPartition, windowInfo, PX_PER_CM, DesignDoc, emptyDesign, parseDesign, parseTarget, resolveFinish, storeyLooks, roomLooks, targetKey, validate, finishesFor, BASE, PART_IDS, finish } from '../src/index'
+import { cabinets, panels, nest, worktop, hardware, SHEET, SLAB_MAX, costReport, roomQuantities, DEFAULT_PRICES, priceBook, autoFill, checkRun, runsFromPlan, runUsed, runFootprint, windowsBehind, applyEdits, editKey, findPartition, windowInfo, PX_PER_CM, DesignDoc, emptyDesign, parseDesign, parseTarget, resolveFinish, storeyLooks, roomLooks, targetKey, validate, finishesFor, BASE, PART_IDS, finish } from '../src/index'
 
 const house = parseHouse(JSON.parse(readFileSync(new URL('../../../storage/houses/twin-a/house.json', import.meta.url), 'utf8')))
 
@@ -246,4 +246,56 @@ test('cost: kitchen, windows and moved walls are priced; the book overrides defa
   const cheaper = costReport(house, d, { finishes: { 'stone-travertine': 100 } })
   assert.ok(cheaper.total < r.total)
   assert.equal(priceBook({ vat: .17 }).finishes['tile-light'], DEFAULT_PRICES.finishes['tile-light'])
+})
+
+test('shop: one cabinet per module, sizes in mm add up to the wall', () => {
+  const run = { ...runsFromPlan(house, 1, 3)[0], uppers: true }
+  const cabs = cabinets(run)
+  const lower = cabs.filter(c => c.type !== 'upper')
+  assert.equal(lower.length, run.modules.length)
+  assert.equal(lower.reduce((a, c) => a + c.w, 0), run.length * 10)
+  assert.ok(cabs.some(c => c.type === 'upper'))
+  const sink = cabs.find(c => c.type === 'sink')!
+  assert.equal(sink.fronts.length, 2); assert.equal(sink.hinges, 4)                 // 80 cm: two doors
+  assert.equal(cabs.find(c => c.type === 'fridge')!.fronts.length, 2, 'fridge 60: one door below, one above')
+  assert.equal(cabs.find(c => c.type === 'dishwasher')!.legs, 0)
+})
+
+test('shop: panels, edge banding and nesting on 2800 × 2070 boards', () => {
+  const run = runsFromPlan(house, 1, 3)[0]
+  const ps = panels(cabinets(run))
+  const drawers = ps.filter(p => p.name === 'חזית מגירה')
+  assert.ok(drawers.length > 0 && drawers.every(p => p.edges === '4' && p.grain))
+  assert.ok(ps.filter(p => p.name === 'דופן').every(p => p.qty === 2 && p.edges === 'L'))
+  for (const mat of ['carcass', 'front', 'back'] as const) {
+    const L = nest(ps, mat)
+    const pieces = ps.filter(p => p.material === mat).reduce((a, p) => a + p.qty, 0)
+    assert.equal(L.sheets.flat().length, pieces, mat)
+    for (const s of L.sheets) {
+      for (const p of s) assert.ok(p.x + p.w <= SHEET.w - 2 * SHEET.trim && p.y + p.h <= SHEET.h - 2 * SHEET.trim, `${mat} piece off the board`)
+      for (let i = 0; i < s.length; i++) for (let k = i + 1; k < s.length; k++) {
+        const a = s[i], b = s[k]
+        assert.ok(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y, `${mat} overlap ${a.label} / ${b.label}`)
+      }
+    }
+    assert.ok(L.used > 0 && L.used <= 1)
+  }
+  const hw = hardware(cabinets(run), ps)
+  assert.ok(hw.hinges > 0 && hw.runners > 0 && hw.edgeBandM > 0)
+})
+
+test('shop: worktop cut-outs sit over their units; long tops split at a unit joint', () => {
+  const run = runsFromPlan(house, 1, 3)[0]
+  const tops = worktop(run)
+  const total = tops.reduce((a, p) => a + p.length, 0)
+  const base = run.modules.filter(m => !['fridge', 'oven', 'pantry'].includes(m.t)).reduce((a, m) => a + m.w * 10, 0)
+  assert.equal(total, base)
+  const cuts = tops.flatMap(p => p.cutouts.map(c => ({ ...c, abs: p.from + c.x })))
+  let at = 0
+  for (const m of run.modules) { if (m.t === 'sink' || m.t === 'hob') assert.ok(cuts.some(c => c.kind === m.t && Math.abs(c.abs - (at + m.w * 5)) < 1)); at += m.w * 10 }
+  const long = { ...run, modules: [{ t: 'drawers' as const, w: 120 }, { t: 'hob' as const, w: 80 }, { t: 'drawers' as const, w: 60 }, { t: 'sink' as const, w: 80 }, { t: 'drawers' as const, w: 90 }] }
+  const split = worktop(long)
+  assert.equal(split.length, 2)
+  assert.ok(split.every(p => p.length <= SLAB_MAX && p.joint))
+  for (const p of split) for (const c of p.cutouts) assert.ok(c.x - c.w / 2 > 0 && c.x + c.w / 2 < p.length, 'cut-out inside its piece')
 })

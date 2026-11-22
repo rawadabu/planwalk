@@ -1,0 +1,76 @@
+/* Carpenter drawing set: A3 landscape sheets. One look on screen and on paper (drawings are always black on white). */
+@page { size: A3 landscape; margin: 0 }
+.sheets{--ink:#111;--mid:#666;--hair:#bbb;--accent:#1f5fd1;background:#e9ecef;color:var(--ink);font-family:"Heebo",system-ui,sans-serif;min-height:100vh;padding-bottom:40px}
+.sheets .toolbar{position:sticky;top:0;z-index:5;display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:12px max(16px,env(safe-area-inset-right));background:#fff;border-bottom:1px solid var(--hair);font-size:14px}
+.sheets .toolbar a{color:var(--accent);text-decoration:none}
+.sheets .toolbar .hint{color:var(--mid);font-size:12px}
+.sheets .toolbar .btn{font:600 14px inherit;padding:8px 14px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+.sheets-msg{padding:40px;font:16px "Heebo",system-ui,sans-serif;direction:rtl}
+.sheet{width:420mm;height:297mm;margin:16px auto;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.12);display:flex;flex-direction:column;padding:10mm;box-sizing:border-box;overflow:hidden;border:0}
+.sheet .body{flex:1;min-height:0;display:flex;flex-direction:column;gap:6mm;overflow:hidden;border:.5mm solid var(--ink);padding:6mm}
+.sheet .body.two{flex-direction:row;align-items:flex-start;justify-content:space-between}
+.sheet .body.cover{display:grid;grid-template-columns:1fr 1fr;gap:12mm}
+.sheet h1{font-size:9mm;margin:2mm 0;line-height:1.1}
+.sheet h2{font-size:5mm;margin:0 0 3mm}
+.sheet h3{font-size:3.6mm;margin:0 0 2mm}
+.sheet .eyebrow{font:500 3mm "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.06em;color:var(--mid)}
+.sheet .sub{color:var(--mid);font-size:3.6mm;margin:0 0 5mm}
+.sheet .note{font-size:3mm;color:var(--mid);margin:2mm 0 0;line-height:1.5}
+.sheet table{border-collapse:collapse}
+.sheet .spec{width:100%;font-size:3.2mm;margin-bottom:4mm}
+.sheet .spec th{text-align:right;font-weight:600;padding:1.4mm 0 1.4mm 4mm;white-space:nowrap;vertical-align:top;width:28%}
+.sheet .spec td{padding:1.4mm 0;border-bottom:.2mm solid var(--hair)}
+.sheet .grid{width:100%;font-size:2.8mm;margin-bottom:4mm}
+.sheet .grid.small{font-size:2.4mm}
+.sheet .grid th{background:#f2f2f2;font-weight:600;padding:1.2mm 1.5mm;border:.2mm solid var(--hair);text-align:right}
+.sheet .grid td{padding:1mm 1.5mm;border:.2mm solid var(--hair)}
+.sheet .grid td.n{direction:ltr;text-align:right;font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.sheet .sign{display:grid;grid-template-columns:1fr 1fr;gap:8mm;margin-top:10mm}
+.sheet .sign div{border-top:.3mm solid var(--ink);padding-top:1.5mm;font-size:3mm;color:var(--mid)}
+.sheet figure{margin:0;display:flex;flex-direction:column;gap:2mm}
+.sheet figcaption{font-size:3.2mm;font-weight:600}
+.sheet .cut{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5mm;align-items:start}
+.sheet .cutblock{min-width:0}
+.sheet .boards{display:flex;flex-wrap:wrap;gap:3mm}
+.sheet .boards figure{width:84mm}
+.sheet .boardsheet{display:flex;flex-direction:column;gap:5mm}
+.sheet .boards figcaption{font-size:2.4mm;font-weight:400;color:var(--mid)}
+.sheet .board{width:84mm;height:auto;display:block}
+.board .sheetbg{fill:#fafafa;stroke:var(--ink);stroke-width:6}
+.board .piece{fill:#e8eef9;stroke:var(--ink);stroke-width:4}
+.board text{fill:var(--ink);font-family:"IBM Plex Mono",monospace}
+/* drawings: real millimetres in the viewBox, stroke widths in model units */
+.drawing{display:block;direction:ltr;max-width:100%}
+.drawing .cab{fill:#fff;stroke:var(--ink);stroke-width:12}
+.drawing .cab.tall{fill:#f1f1f1}
+.drawing .plinth{fill:#ddd;stroke:var(--ink);stroke-width:6}
+.drawing .split{stroke:var(--ink);stroke-width:6}
+.drawing .top{fill:#cfcfcf;stroke:var(--ink);stroke-width:8}
+.drawing .dev{fill:#333}
+.drawing .win{fill:none;stroke:var(--accent);stroke-width:8;stroke-dasharray:40 30}
+.drawing .floorline{stroke:var(--ink);stroke-width:16}
+.drawing .wall{fill:#555;stroke:#222;stroke-width:4}
+.drawing .glass{fill:#cfe0f7;stroke:var(--accent);stroke-width:4}
+.drawing .island{fill:none;stroke:var(--ink);stroke-width:8;stroke-dasharray:50 30}
+.drawing .topslab{fill:#f4f4f4;stroke:var(--ink);stroke-width:10}
+.drawing .cutout{fill:#fff;stroke:var(--ink);stroke-width:8;stroke-dasharray:30 20}
+.drawing .no{fill:var(--ink);font-family:"IBM Plex Mono",monospace;font-weight:600}
+.drawing .lbl{fill:var(--mid)}
+.drawing text{fill:var(--ink);font-family:"IBM Plex Mono",monospace}
+.drawing .dim line{stroke:var(--accent);stroke-width:5}
+.drawing .dim text{fill:var(--accent)}
+.titleblock{flex:none;display:grid;grid-template-columns:30mm 1.2fr 1fr 1.6fr .6fr .6fr .7fr .7fr;border:.5mm solid var(--ink);border-top:0;font-size:3mm;height:14mm}
+.titleblock > div{border-inline-start:.3mm solid var(--ink);padding:1.2mm 2mm;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.titleblock > div:first-child{border-inline-start:0}
+.titleblock span{font-size:2.2mm;color:var(--mid)}
+.titleblock b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.titleblock .tb-brand{font:700 4.5mm "Geist",system-ui,sans-serif;direction:ltr;align-items:center}
+.titleblock .no b{font-family:"IBM Plex Mono",monospace;direction:ltr}
+@media print{
+  .noprint{display:none!important}
+  .sheets{background:#fff;padding:0}
+  .sheet{margin:0;box-shadow:none;page-break-after:always;break-after:page}
+  html,body{background:#fff}
+}
+@media screen and (max-width:1700px){.sheets .sheet{zoom:.7}}
+@media screen and (max-width:1000px){.sheets .sheet{zoom:.45}}

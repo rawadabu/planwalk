@@ -149,12 +149,12 @@ export function runsFromPlan(house: House, floor: 0 | 1 | 2, room: number): Run[
 }
 
 /** Windows on the wall behind a run (uppers can't go there), as [from, to] cm along the run. */
-export function windowsBehind(house: House, run: Run): Array<[number, number]> {
+export function windowsBehind(house: House, run: Run): Array<[number, number, number, number]> {
   const fl = house.floors[run.floor], ax = run.axis === 'x' ? 0 : 1, start = run.axis === 'x' ? run.x : run.y
   const back = run.axis === 'x' ? run.y : run.x
   return fl.glass
     .filter(g => { const c1 = run.axis === 'x' ? g[1] : g[0], c2 = run.axis === 'x' ? g[3] : g[2]; return Math.abs((run.facing > 0 ? c2 : c1) - back) < 25 || (c1 <= back && c2 >= back - 25) })
-    .map(g => [(g[ax] - start) / PX_PER_CM, (g[2 + ax] - start) / PX_PER_CM] as [number, number])
+    .map(g => [(g[ax] - start) / PX_PER_CM, (g[2 + ax] - start) / PX_PER_CM, g[4], g[5]] as [number, number, number, number])
     .filter(([a, b]) => b > 0 && a < run.length)
 }
 

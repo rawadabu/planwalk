@@ -4,6 +4,7 @@ import type { House, StoreyId } from '@planwalk/house'
 import { MODULES, PX_PER_CM, applyEdits, autoFill, checkRun, editKey, isTall, runUsed, runsFromPlan, windowsBehind, type Module, type ModuleType, type Run } from '@planwalk/design'
 import { renderDesign, type DesignSession } from './DesignPanel'
 import { CostChip, useCost } from './Cost'
+import { STATIC } from '../api'
 
 const TYPES = Object.keys(MODULES).filter(t => t !== 'filler') as ModuleType[]
 const kitchenRoom = (h: House) => {
@@ -102,6 +103,11 @@ export function KitchenPanel({ viewer, house, houseId, prices, session, onHouse,
         <button className="btn reset" onClick={() => { if (doc.setEdit(key, null)) show() }}>חזרה למטבח שבתוכנית</button>
       </div>
       <CostChip report={cost} houseId={houseId} onOpen={onCost} />
+      <button className="btn primary wide" onClick={() => {
+        // hand the current design to the drawing set (a new tab; works without a server too)
+        try { localStorage.setItem(`planwalk.sheet.${houseId}`, JSON.stringify({ design: doc.design, name: session.active?.name ?? 'המטבח שלי', version: session.active?.version ?? null, at: new Date().toISOString() })) } catch { /* private mode: the sheets show the plan kitchen */ }
+        window.open(STATIC ? `#/h/${houseId}/sheets` : `/h/${houseId}/sheets`, '_blank')
+      }}>PDF לנגר</button>
       <p className="fine">שמירה וגרסאות: בחלונית "עיצוב". המטבח הוא חלק מהעיצוב.</p>
     </section>
   )

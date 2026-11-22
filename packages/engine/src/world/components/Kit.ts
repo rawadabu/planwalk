@@ -63,7 +63,7 @@ export default class Kit {
       box(p0 + G, p1 - G, D - FT, D, y0 + .0015, y1 - .0015, 'walnut')
       if (handle) box(p0 + (p1 - p0) * .32, p1 - (p1 - p0) * .32, D, D + .8, y1 - .045, y1 - .03, 'metal')
     }
-    const pair = (y0, y1) => { if (w >= 58) { front(a0, am, y0, y1); front(am, a1, y0, y1) } else front(a0, a1, y0, y1) }
+    const pair = (y0, y1) => { if (w > 61) { front(a0, am, y0, y1); front(am, a1, y0, y1) } else front(a0, a1, y0, y1) }
     const BASE = .87, TALL = 2.2
     if (kind === 'upper' || kind === 'hood') {
       if (kind === 'hood') {
@@ -72,7 +72,7 @@ export default class Kit {
         return
       }
       box(a0 + G, a1 - G, 0, D - FT, 1.45, 2.15, 'lacquer')
-      if (w >= 58) { box(a0 + G, am - G, D - FT, D, 1.4515, 2.1485, 'walnut'); box(am + G, a1 - G, D - FT, D, 1.4515, 2.1485, 'walnut') }
+      if (w > 61) { box(a0 + G, am - G, D - FT, D, 1.4515, 2.1485, 'walnut'); box(am + G, a1 - G, D - FT, D, 1.4515, 2.1485, 'walnut') }
       else box(a0 + G, a1 - G, D - FT, D, 1.4515, 2.1485, 'walnut')
       return
     }
