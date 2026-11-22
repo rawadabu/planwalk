@@ -22,6 +22,11 @@ export interface Pose { x: number; y: number; yaw: number; floor: StoreyId }
 export interface PlanPoint { floor: StoreyId; x: number; y: number; h: number }
 /** Where the sun is for a real place and moment. north = plan angle of true north, degrees clockwise from the top of the sheet */
 export interface SunAt { date: Date; lat: number; lng: number; north?: number }
+/** How a surface is drawn (matches @planwalk/design's Look). */
+export interface Look { color: string; texture?: 'oak' | 'walnut' | 'tile' | 'quartz' | 'plaster'; roughness: number; metalness?: number }
+export type DesignPart = 'floor' | 'walls' | 'ceiling' | 'joinery' | 'worktop' | 'frames'
+/** Per part, per storey (0, 1, 2): the look to draw, or null for the base model's own material. */
+export type DesignLooks = Partial<Record<DesignPart, [Look | null, Look | null, Look | null]>>
 export interface MeasureReading { cm: number; screen: { x: number; y: number }; visible: boolean }
 
 /** Events the viewer emits. The UI subscribes with viewer.on(name, handler). */
@@ -58,6 +63,8 @@ export interface Viewer {
   setStory(t: number | null): void
   /** Live finishes: cabinets 'walnut' | 'oak' | 'navy' | 'sage' | 'white'; floor 'tile' | 'oak' | 'concrete' */
   setFinish(slot: 'cabinets' | 'floor', option: string): void
+  /** Draw a design over the base model; {} returns to the architect's base. */
+  applyDesign(looks: DesignLooks): void
   /** The surface point under a screen position, or null */
   pick(clientX: number, clientY: number): PlanPoint | null
   /** Screen position (CSS px, relative to the canvas) of a house point; visible = in front of the camera */

@@ -90,3 +90,11 @@ per-frame ones (`pose`, `measure`) are written straight to DOM refs so React doe
 ## Build story (`/h/:id/story`)
 
 A scroll page where the house builds itself from its own plan data: blueprint lines → ground slab → concrete frame → block walls → windows → finished house, at dusk turning to golden hour. Then the camera goes into the kitchen, where buyers choose cabinet (walnut / oak / navy / sage / white) and floor (light tile / oak / concrete) finishes live. Engine: `viewer.setStory(t)` and `viewer.setFinish(slot, option)`; nothing is rebuilt per frame (stages are revealed with rising clipping planes).
+
+## Designs (sheet A-03)
+
+`packages/design`: `design@1` = finish choices layered over a house's base model (the base is never edited).
+Targets are `<part>@<scope>` — parts `floor | walls | ceiling | joinery | worktop | frames`, scope `all`, `f1` (a storey) or `f1.r6` (a room); the most specific wins.
+A finish catalogue (paint, wood, lacquer, tile, stone, concrete, aluminium) with allowed categories per part, build rules (errors block saving, warnings e.g. wood floor in a bathroom), and `DesignDoc` with undo/redo. `npm test -w @planwalk/design`.
+API: `GET/POST /api/houses/:id/designs`, `GET/PUT/DELETE /api/designs/:id` (PUT sends the version it edited → 409 on conflict), `GET /api/designs/:id/revisions`, `POST /api/designs/:id/restore`. Every save is kept as a revision.
+Roles: owner/admin/architect create, edit, delete · sales create, edit · viewer reads. Engine: `viewer.applyDesign(storeyLooks(design))`.

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer, real, doublePrecision, pgEnum, index, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, integer, real, doublePrecision, pgEnum, index, uniqueIndex, jsonb } from 'drizzle-orm/pg-core'
 
 // ───────────────────────── Better Auth (core + organization plugin) ─────────────────────────
 // Field names must match Better Auth's expectations (checked against better-auth 1.7 getAuthTables).
@@ -164,3 +164,27 @@ export const comment = pgTable('comment', {
   resolvedBy: text('resolved_by').references(() => user.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('comment_house_idx').on(t.houseId)])
+
+/** A design: finishes and options layered over a house's base model (design@1 in `data`). The base is never edited. */
+export const design = pgTable('design', {
+  id: text('id').primaryKey(),
+  houseId: text('house_id').notNull().references(() => house.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  data: jsonb('data').notNull(),
+  version: integer('version').notNull().default(1),        // optimistic concurrency: PUT must send the version it edited
+  createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+  updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('design_house_idx').on(t.houseId)])
+
+/** Every saved version of a design, so any earlier state can be restored. */
+export const designRevision = pgTable('design_revision', {
+  id: text('id').primaryKey(),
+  designId: text('design_id').notNull().references(() => design.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  name: text('name').notNull(),
+  data: jsonb('data').notNull(),
+  authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex('design_rev_unique').on(t.designId, t.version)])

@@ -86,6 +86,28 @@ export default class Materials {
     this.shadowless = new Set(['glass', 'railGlass', 'lightDisc', 'ringLed', 'ledStrip', 'flame', 'rug'])
   }
   get(key) { return this.list[key] }
+  // A material for a design look, derived from the base material of the surface it replaces (same UV scale).
+  // Cached per (surface, look), so switching back and forth costs nothing.
+  lookMaterial(baseKey: string, look: { color: string; texture?: string; roughness: number; metalness?: number }) {
+    this._looks ??= new Map()
+    const id = baseKey + JSON.stringify(look)
+    if (this._looks.has(id)) return this._looks.get(id)
+    const base = this.list[baseKey], m = base.clone()
+    const L = this.list, uv = this.uvSize, TEX = {
+      oak: [L.oak.map, L.oak.roughnessMap, L.oak.normalMap, uv.oak], walnut: [L.walnut.map, L.walnut.roughnessMap, L.walnut.normalMap, uv.walnut],
+      tile: [L.floor.map, L.floor.roughnessMap, null, this.FLOOR_TILE_M], quartz: [L.quartz.map, null, null, uv.quartz], plaster: [null, null, L.wall.normalMap, uv.wall],
+    }
+    const t = look.texture ? TEX[look.texture] : null
+    // textures are drawn at their own real size whatever surface they land on
+    const scaled = tex => { if (!tex) return null; const k = (uv[baseKey] || 1) / (t[3] || 1); if (Math.abs(k - 1) < 1e-3) return tex; const c = tex.clone(); c.repeat.multiplyScalar(k); c.needsUpdate = true; this.textures.push(c); return c }
+    m.map = t ? scaled(t[0]) : null
+    m.roughnessMap = t ? scaled(t[1]) : null
+    m.normalMap = t ? scaled(t[2]) : null
+    m.color.set(look.color); m.roughness = look.roughness; m.metalness = look.metalness ?? 0
+    m.needsUpdate = true
+    this._looks.set(id, m)
+    return m
+  }
   // "Make it yours": live finish options. Cabinets = the walnut joinery, floor = the floor finish.
   setFinish(slot: 'cabinets' | 'floor', option: string) {
     const mat = this.list[slot === 'cabinets' ? 'walnut' : 'floor']
@@ -107,6 +129,7 @@ export default class Materials {
   }
   dispose() {
     for (const m of Object.values(this.list) as any[]) m.dispose()
+    this._looks?.forEach(m => m.dispose())
     this.textures.forEach(t => t.dispose())
   }
 }

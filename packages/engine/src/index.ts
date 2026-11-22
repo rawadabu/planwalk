@@ -46,6 +46,7 @@ export function createViewer(options: ViewerOptions): Viewer {
       if (!st.active) { if (exp.world.ready) { st.t = t; st.enter() } else exp.on('worldReady', () => { if (!st.active) { st.t = st.target; st.enter() } }) }
     },
     setFinish: (slot, option) => { exp.world.materials?.setFinish(slot, option); exp.renderer.requestRender?.() },
+    applyDesign: looks => { if (exp.world.ready) exp.world.applyLooks(looks); else exp.on('worldReady', () => exp.world.applyLooks(looks)) },
     pick: (cx, cy) => {
       const cam = exp.camera.instance, r = exp.canvas.getBoundingClientRect()
       const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2((cx - r.left) / r.width * 2 - 1, -(cy - r.top) / r.height * 2 + 1), cam)

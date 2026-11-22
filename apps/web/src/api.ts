@@ -21,12 +21,15 @@ export interface HouseMeta {
 export interface Comment { id: string; parentId: string | null; authorName: string; body: string; floor: 0 | 1 | 2; x: number; y: number; h: number; resolved: boolean; createdAt: string; mine: boolean }
 export interface ProjectLocation { address?: string | null; lat?: number | null; lng?: number | null; northDeg?: number | null; name?: string }
 
-export class ApiError extends Error { constructor(message: string, public status: number) { super(message) } }
+export interface DesignRow { id: string; name: string; version: number; updatedAt: string; updatedBy: string | null }
+export interface DesignFull { id: string; houseId: string; name: string; data: unknown; version: number; updatedAt: string; issues?: Array<{ target: string; level: string; message: string }> }
+
+export class ApiError extends Error { constructor(message: string, public status: number, public body: any = {}) { super(message) } }
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { credentials: 'include', ...init, headers: { ...(init?.body && !(init.body instanceof FormData) ? { 'content-type': 'application/json' } : {}), ...init?.headers } })
   if (res.status === 204) return undefined as T
   const body = await res.json().catch(() => ({}))
-  if (!res.ok) throw new ApiError(body.error || body.message || `Request failed (${res.status})`, res.status)
+  if (!res.ok) throw new ApiError(body.error || body.message || `Request failed (${res.status})`, res.status, body)
   return body as T
 }
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) })
@@ -55,6 +58,11 @@ export const api = {
     req<Comment>(`/api/houses/${id}/comments`, { ...json('POST', b), ...shareHdr(share) }),
   resolveComment: (id: string, resolved: boolean) => req<Comment>(`/api/comments/${id}`, json('PATCH', { resolved })),
   deleteComment: (id: string, share?: string) => req<void>(`/api/comments/${id}`, { method: 'DELETE', ...shareHdr(share) }),
+  designs: (houseId: string) => req<{ designs: DesignRow[]; can: { create: boolean; update: boolean; delete: boolean } }>(`/api/houses/${houseId}/designs`),
+  createDesign: (houseId: string, b: { name: string; from?: string }) => req<DesignFull>(`/api/houses/${houseId}/designs`, json('POST', b)),
+  design: (id: string) => req<DesignFull>(`/api/designs/${id}`),
+  saveDesign: (id: string, b: { version: number; data: unknown; name?: string }) => req<DesignFull>(`/api/designs/${id}`, json('PUT', b)),
+  deleteDesign: (id: string) => req<void>(`/api/designs/${id}`, { method: 'DELETE' }),
   houseUrl: (id: string, share?: string) => STATIC ? `./houses/${id}/house.json` : `/api/houses/${id}/house.json${share ? `?share=${encodeURIComponent(share)}` : ''}`,
   houseFile: (id: string, file: string, share?: string) => STATIC ? `./houses/${id}/${file}` : `/api/houses/${id}/${file}${share ? `?share=${encodeURIComponent(share)}` : ''}`,
   libraryUrl: STATIC ? './library/' : '/api/library/',

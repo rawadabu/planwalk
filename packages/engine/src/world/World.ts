@@ -63,6 +63,27 @@ export default class World {
     this.environment.placeLamps(floor)
   }
 
+  // ── design looks: swap materials per part and storey, keeping the base material to come back to ──
+  applyLooks(looks) {
+    const M = this.materials, G = this.groups
+    const KEY = { floor: 'floor', walls: 'wall', ceiling: 'ceil', joinery: 'walnut', worktop: 'quartz', frames: 'metal' }
+    // which meshes a part covers on storey f (a storey's ceiling is the underside of the slab above it, or the roof)
+    const meshes = (part, f) => {
+      const key = KEY[part], out: any[] = []
+      const groups = part === 'joinery' || part === 'worktop' ? [G.int[f]] : part === 'ceiling' ? [f < 2 ? G.arch[f + 1] : G.roof] : [G.arch[f]]
+      for (const g of groups) g.traverse(o => { if (o.isMesh && (o.userData.baseKey ?? o.userData.matKey) === key) out.push(o) })
+      return out
+    }
+    for (const part of Object.keys(KEY)) for (const f of [0, 1, 2]) {
+      const look = looks[part]?.[f] ?? null
+      for (const m of meshes(part, f)) {
+        if (!m.userData.baseMat) { m.userData.baseMat = m.material; m.userData.baseKey = m.userData.matKey }
+        m.material = look ? M.lookMaterial(KEY[part], look) : m.userData.baseMat
+      }
+    }
+    this.experience.renderer.requestShadowUpdate()
+  }
+
   // Render the shadow map with everything that should cast (all storeys + shadow-only canopies), then restore.
   prepareShadowPass(on) {
     const all = [...this.groups.arch, ...this.groups.int, this.groups.roof]
