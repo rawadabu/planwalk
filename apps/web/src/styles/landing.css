@@ -97,3 +97,45 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   nav .btn{margin-left:auto}
 }
 @media (max-width:560px){.steps,.features{grid-template-columns:1fr}}
+
+/* hero animation: the product loop in 12 s (plan → walls → finish + price → PDF) */
+.heroanim{border-radius:14px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);overflow:hidden;aspect-ratio:600/420}
+.heroanim svg{display:block;width:100%;height:100%}
+.heroanim .ha-bg{opacity:1}.heroanim .ha-gridline{stroke:var(--line);stroke-width:.6}
+.heroanim .ha-scene{animation:ha-fade 12s infinite}
+.heroanim .ha-plan{stroke:var(--accent);stroke-width:2.4;stroke-linecap:round;stroke-dasharray:400;stroke-dashoffset:400;animation:ha-draw 12s infinite}
+.heroanim .ha-dim line{stroke:var(--faint);stroke-width:1;stroke-dasharray:4 3}.heroanim .ha-dim text{font:500 11px var(--mono);fill:var(--faint)}
+.heroanim .ha-dim{opacity:0;animation:ha-dim 12s infinite}
+.heroanim .ha-wall{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0);animation:ha-rise 12s infinite}
+.heroanim .ha-wall polygon.front{fill:var(--surface-2);stroke:var(--line-strong);stroke-width:1}
+.heroanim .ha-wall polygon.side{fill:color-mix(in srgb,var(--surface-2) 80%,var(--fg) 8%);stroke:var(--line-strong);stroke-width:1}
+.heroanim .ha-wall .cap{stroke:var(--fg);stroke-width:2.2;stroke-linecap:round}
+.heroanim .ha-floor{fill:transparent;stroke:none;animation:ha-floor 12s infinite}
+.heroanim .ha-floor.f2{animation-delay:.15s}.heroanim .ha-floor.f3{animation-delay:.3s}
+.heroanim .ha-price rect{fill:var(--surface);stroke:var(--line-strong)}
+.heroanim .ha-price{opacity:0;animation:ha-show 12s infinite}
+.heroanim .lbl{font:500 10px var(--mono);fill:var(--faint);letter-spacing:.04em}
+.heroanim .fin{font:600 13px var(--font);fill:var(--fg)}
+.heroanim .amt{font:700 15px var(--font);fill:var(--accent)}
+.heroanim .ha-state{opacity:0}
+.heroanim .ha-state.s0{animation:ha-s0 12s infinite}.heroanim .ha-state.s1{animation:ha-s1 12s infinite}.heroanim .ha-state.s2{animation:ha-s2 12s infinite}
+.heroanim .ha-pdf{opacity:0;transform:translateY(16px);animation:ha-pdf 12s infinite}
+.heroanim .ha-pdf rect:first-child{fill:var(--surface);stroke:var(--line-strong)}
+.heroanim .ha-pdf .row{fill:var(--line)}
+.heroanim .ha-pdf .sheet{fill:color-mix(in srgb,var(--accent) 18%,var(--surface));stroke:var(--accent)}
+.heroanim .ha-pdf .sheet-l{stroke:var(--accent);stroke-width:1;fill:none}
+@keyframes ha-draw{0%{stroke-dashoffset:400}22%,92%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}
+@keyframes ha-dim{0%,14%{opacity:0}22%,34%{opacity:1}40%,100%{opacity:0}}
+@keyframes ha-rise{0%,22%{transform:scaleY(0)}36%,100%{transform:scaleY(1)}}
+@keyframes ha-floor{0%,36%{fill:transparent}42%,56%{fill:#e9e5de}62%,74%{fill:#d2b48e}80%,100%{fill:#b9b4ac}}
+@keyframes ha-show{0%,38%{opacity:0}44%,96%{opacity:1}100%{opacity:0}}
+@keyframes ha-s0{0%,40%{opacity:0}44%,58%{opacity:1}62%,100%{opacity:0}}
+@keyframes ha-s1{0%,58%{opacity:0}62%,76%{opacity:1}80%,100%{opacity:0}}
+@keyframes ha-s2{0%,76%{opacity:0}80%,96%{opacity:1}100%{opacity:0}}
+@keyframes ha-pdf{0%,80%{opacity:0;transform:translateY(16px)}86%,96%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes ha-fade{0%,94%{opacity:1}100%{opacity:.0}}
+@media (prefers-reduced-motion:reduce){
+  .heroanim *{animation:none!important}
+  .heroanim .ha-plan{stroke-dashoffset:0}.heroanim .ha-wall{transform:none}.heroanim .ha-floor{fill:#d2b48e}
+  .heroanim .ha-price,.heroanim .ha-state.s1,.heroanim .ha-pdf{opacity:1;transform:none}
+}
