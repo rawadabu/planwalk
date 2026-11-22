@@ -30,7 +30,13 @@ export type DesignLooks = Partial<Record<DesignPart, [Look | null, Look | null, 
 /** A room's own finish (floor, walls or ceiling), drawn over the storey's. */
 export interface RoomLook { part: 'floor' | 'walls' | 'ceiling'; floor: StoreyId; room: number; look: Look }
 /** What is under the pointer in design mode. room = index into house.floors[floor].rooms (indoor rooms only). */
-export interface SurfaceHit { part: DesignPart; floor: StoreyId; room: number | null; roomName: string | null; x: number; y: number }
+export interface SurfaceHit {
+  part: DesignPart; floor: StoreyId; room: number | null; roomName: string | null; x: number; y: number
+  /** a window was clicked: its index in house.floors[floor].glass */
+  window?: number
+  /** a wall was clicked: the face's axis ('x' = a face of constant x) and plan coordinate */
+  face?: { axis: 'x' | 'y'; at: number }
+}
 export interface MeasureReading { cm: number; screen: { x: number; y: number }; visible: boolean }
 
 /** Events the viewer emits. The UI subscribes with viewer.on(name, handler). */
@@ -71,6 +77,8 @@ export interface Viewer {
   applyDesign(looks: DesignLooks, rooms?: RoomLook[]): void
   /** Which design surface is under a screen point (floor, walls, ceiling, joinery, worktop, window frames), or null */
   pickSurface(clientX: number, clientY: number): SurfaceHit | null
+  /** Rebuild walls and windows from an edited copy of the house (the base model stays loaded). */
+  setHouse(house: House): void
   /** Highlight a room surface while it is being edited; null clears */
   highlight(sel: { part: DesignPart; floor: StoreyId; room: number | null } | null): void
   /** The surface point under a screen position, or null */

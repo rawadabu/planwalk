@@ -31,6 +31,8 @@ export default class Player {
     Object.assign(this.p, { x: s.x, y: s.y }); this.look.yaw = s.yaw
     this.ready = true
   }
+  /** After a geometry edit: new walls to collide with. */
+  useHouse(house) { this.house = house; this.collision = new Collision(house); this.floors = house.floors; this.stairs = house.stairs }
   _bindInput() {
     const exp = this.experience, canvas = exp.canvas
     this._kd = e => { if (e.target.closest?.('button,input')) return; this.keys[e.key.toLowerCase()] = true }

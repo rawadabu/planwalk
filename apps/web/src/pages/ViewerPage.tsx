@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router'
 import { useViewer } from '../viewer/useViewer'
 import { MiniMap } from '../viewer/MiniMap'
@@ -6,11 +6,12 @@ import { Toolbar } from '../viewer/Toolbar'
 import { MeasureLabel } from '../viewer/MeasureLabel'
 import { Joystick } from '../viewer/Joystick'
 import { AreasPanel } from '../viewer/Areas'
-import { DesignPanel } from '../viewer/DesignPanel'
+import { DesignPanel, newDesignSession } from '../viewer/DesignPanel'
 import { SunPanel } from '../viewer/SunPanel'
 import { CommentsPanel, CommentPins, useComments } from '../viewer/Comments'
 import { type Drawer } from '../viewer/Toolbar'
 import { api, type HouseMeta } from '../api'
+import type { House } from '@planwalk/house'
 import '../styles/viewer.css'
 
 // Walkthrough of one house: full-screen canvas (engine) + React HUD (Hebrew, RTL).
@@ -27,6 +28,10 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
   useEffect(() => { api.houseMeta(houseId, share).then(setMeta).catch(() => setMeta(null)) }, [houseId, share])
   const comments = useComments(houseId, share, meta)
   const [selected, setSelected] = useState<string | null>(null)
+  // the house as edited in design mode (walls moved, windows resized); the area table and minimap follow it
+  const [edited, setEdited] = useState<House | null>(null)
+  const shown = edited ?? ui.house
+  const design = useRef(newDesignSession())
   const openCount = comments.list.filter(c => !c.parentId && !c.resolved).length
 
   return (
@@ -43,7 +48,7 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
             <div className="row"><span className="rname">{ui.room?.[0] ?? ''}</span><span className="rdim">{ui.room?.[1] ?? ''}</span></div>
             <div className="note">מידות לפי התוכנית {ui.house.source.scale} · גובה תקרה {ui.house.storey.height.toFixed(2)}{ui.house.storey.assumed ? ' (הנחה)' : ''}</div>
           </div>
-          <MiniMap viewer={viewer} house={ui.house} houseId={houseId} floor={ui.floor} room={ui.room} share={share} />
+          <MiniMap viewer={viewer} house={shown!} houseId={houseId} floor={ui.floor} room={ui.room} share={share} />
           {ui.nearStair && ui.mode === 'walk' && (
             <div className="panel stairs" role="group" aria-label="מדרגות">
               <span className="lbl2">מדרגות</span>
@@ -54,8 +59,8 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
           {measuring && <div className="panel mhint">מדידה: לחץ על שתי נקודות ברצפה</div>}
           <MeasureLabel viewer={viewer} />
           <CommentPins viewer={viewer} comments={comments.list} floor={ui.floor} mode={ui.mode} selected={selected} onSelect={c => { setSelected(c.id); setDrawer('comments') }} />
-          {drawer === 'design' && meta && <DesignPanel viewer={viewer} house={ui.house} houseId={houseId} meta={meta} floor={ui.floor} onClose={() => setDrawer(null)} />}
-          {drawer === 'areas' && <AreasPanel house={ui.house} floor={ui.floor} onClose={() => setDrawer(null)} />}
+          {drawer === 'design' && meta && <DesignPanel viewer={viewer} house={ui.house} houseId={houseId} meta={meta} floor={ui.floor} onClose={() => setDrawer(null)} onHouse={setEdited} session={design.current} />}
+          {drawer === 'areas' && <AreasPanel house={shown!} floor={ui.floor} onClose={() => setDrawer(null)} />}
           {drawer === 'sun' && meta && <SunPanel viewer={viewer} meta={meta} onClose={() => setDrawer(null)} />}
           {drawer === 'comments' && meta && <CommentsPanel viewer={viewer} house={ui.house} houseId={houseId} share={share} meta={meta} floor={ui.floor} state={comments} selected={selected} setSelected={setSelected} onClose={() => setDrawer(null)} />}
           <Toolbar viewer={viewer} ui={ui} measuring={measuring} setMeasuring={setMeasuring} drawer={drawer} setDrawer={setDrawer} commentCount={openCount} />

@@ -1,6 +1,6 @@
 import { emptyDesign, parseDesign, type Design } from './schema'
 
-/** One change: set (or clear, with id = null) the finish of a target. */
+/** One change: set (or clear, with id = null) a finish target, or an edit (target "edit:<key>", id = the edit as JSON). */
 export interface Op { target: string; id: string | null }
 
 /**
@@ -18,7 +18,7 @@ export class DesignDoc {
   apply(ops: Op[]): boolean {
     const inverse: Op[] = []
     for (const op of ops) {
-      const prev = this.design.finishes[op.target] ?? null
+      const prev = this.read(op.target)
       if (prev === op.id) continue
       inverse.unshift({ target: op.target, id: prev })
       this.write(op)
@@ -40,11 +40,23 @@ export class DesignDoc {
 
   private step(from: Op[][], to: Op[][]) {
     const ops = from.pop(); if (!ops) return false
-    const inverse = ops.map(op => ({ target: op.target, id: this.design.finishes[op.target] ?? null })).reverse()
+    const inverse = ops.map(op => ({ target: op.target, id: this.read(op.target) })).reverse()
     ops.forEach(op => this.write(op)); to.push(inverse)
     return true
   }
+  /** Set (or clear) a geometry edit as one undo step. */
+  setEdit(key: string, edit: unknown | null) { return this.set('edit:' + key, edit == null ? null : JSON.stringify(edit)) }
+  private read(target: string): string | null {
+    if (target.startsWith('edit:')) { const e = this.design.edits[target.slice(5)]; return e ? JSON.stringify(e) : null }
+    return this.design.finishes[target] ?? null
+  }
   private write({ target, id }: Op) {
+    if (target.startsWith('edit:')) {
+      const edits = { ...this.design.edits }, key = target.slice(5)
+      if (id == null) delete edits[key]; else edits[key] = JSON.parse(id)
+      this.design = { ...this.design, edits }
+      return
+    }
     const next = { ...this.design.finishes }
     if (id == null) delete next[target]; else next[target] = id
     this.design = { ...this.design, finishes: next }

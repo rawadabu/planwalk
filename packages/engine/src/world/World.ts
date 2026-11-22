@@ -49,6 +49,25 @@ export default class World {
     exp.trigger('worldReady', this.house)
   }
 
+  /** Rebuild the static house from an edited copy (design edits). Furniture, lights and the environment stay. */
+  rebuild(house) {
+    const exp = this.experience
+    this.house = house
+    this.batcher.dispose(); this.fireplace?.dispose(); this.roomSkins?.dispose()
+    if (exp.story?.built) { exp.story.dispose(); exp.story.built = false }
+    this.architecture = new Architecture(this)
+    this.kit = new Kit(this)
+    this.batcher.flush()
+    this.fireplace = new Fireplace(this, this.kit.firePoints, this.materials)
+    this.roomSkins = new RoomSkins(this)
+    this.environment.kit = this.kit
+    for (const g of [...this.groups.arch, ...this.groups.int, this.groups.roof]) g.traverse(o => { if (o.isMesh && o.matrixAutoUpdate) { o.updateMatrix(); o.matrixAutoUpdate = false } })
+    this.applyQuality(exp.renderer.preset)
+    this.updateVisibility()
+    exp.player.useHouse(house)
+    exp.renderer.requestShadowUpdate()
+  }
+
   inRoom(f, x, y) {
     const fl = this.house.floors[f]
     return fl.rooms.slice(0, fl.indoor).some(r => x >= r[2] && x < r[4] && y >= r[3] && y < r[5])

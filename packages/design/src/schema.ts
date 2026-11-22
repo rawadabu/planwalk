@@ -13,13 +13,20 @@ import { PART_IDS, type Part } from './catalog'
 export const TARGET = new RegExp(`^(${PART_IDS.join('|')})@(all|f[0-2](?:\\.r\\d{1,3})?)$`)
 export type Scope = { floor?: 0 | 1 | 2; room?: number }
 
+const Storey = z.union([z.literal(0), z.literal(1), z.literal(2)])
+export const EditSchema = z.discriminatedUnion('k', [
+  z.object({ k: z.literal('window'), floor: Storey, index: z.number().int().min(0), width: z.number().optional(), sill: z.number().optional(), head: z.number().optional(), type: z.enum(['sliding', 'hinged', 'fixed']).optional() }),
+  z.object({ k: z.literal('wall'), floor: Storey, axis: z.enum(['x', 'y']), a: z.number(), b: z.number(), lo: z.number(), hi: z.number(), by: z.number() }),
+])
 export const Design = z.object({
   format: z.literal('design@1'),
   finishes: z.record(z.string().regex(TARGET, 'Unknown target'), z.string().min(1).max(64)).default({}),
+  /** geometry edits keyed by editKey(): window:f1.3, wall:f2.x545.703 */
+  edits: z.record(z.string().regex(/^(window|wall):f[0-2]\.[\w.-]{1,40}$/), EditSchema).default({}),
   note: z.string().max(2000).optional(),
 })
 export type Design = z.infer<typeof Design>
-export const emptyDesign = (): Design => ({ format: 'design@1', finishes: {} })
+export const emptyDesign = (): Design => ({ format: 'design@1', finishes: {}, edits: {} })
 export function parseDesign(data: unknown): Design { return Design.parse(data) }
 
 export function targetKey(part: Part, scope: Scope = {}): string {

@@ -57,7 +57,7 @@ export function createViewer(options: ViewerOptions): Viewer {
       if (!hit) return null
       const key = hit.object.userData.baseKey ?? hit.object.userData.matKey
       const inArch = world.groups.arch.some(g => g === hit.object.parent)
-      const PART = { floor: 'floor', wall: 'walls', ceil: 'ceiling', walnut: 'joinery', quartz: 'worktop', ...(inArch ? { metal: 'frames' } : {}) }
+      const PART = { floor: 'floor', wall: 'walls', ceil: 'ceiling', walnut: 'joinery', quartz: 'worktop', ...(inArch ? { metal: 'frames', glass: 'frames', glassSimple: 'frames', glassPhysical: 'frames' } : {}) }
       const part = PART[key]; if (!part) return null
       // step 5 cm off the surface towards the camera, so a wall hit lands in the room it faces
       const n = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3()
@@ -66,8 +66,21 @@ export function createViewer(options: ViewerOptions): Viewer {
       const floor = (([2, 1, 0] as StoreyId[]).find(f => p.y >= LEVEL[f] - 0.05) ?? 0)
       const x = p.x / K, y = p.z / K, fl = world.house.floors[floor]
       const room = fl.rooms.slice(0, fl.indoor).findIndex(rm => x >= rm[2] && x < rm[4] && y >= rm[3] && y < rm[5])
-      return { part, floor, room: room >= 0 ? room : null, roomName: room >= 0 ? fl.rooms[room][0] : null, x: Math.round(x), y: Math.round(y) }
+      const out: any = { part, floor, room: room >= 0 ? room : null, roomName: room >= 0 ? fl.rooms[room][0] : null, x: Math.round(x), y: Math.round(y) }
+      // the raw hit (not nudged): which window, or which wall face
+      const hx = hit.point.x / K, hy = hit.point.z / K
+      if (part === 'frames') {
+        let best = -1, bd = 14
+        fl.glass.forEach((g, i) => { const dx = Math.max(g[0] - hx, 0, hx - g[2]), dy = Math.max(g[1] - hy, 0, hy - g[3]), d = Math.hypot(dx, dy); if (d < bd) { bd = d; best = i } })
+        if (best >= 0) out.window = best
+      }
+      if (part === 'walls' && hit.face) {
+        const wn = hit.face.normal.clone().transformDirection(hit.object.matrixWorld)
+        if (Math.abs(wn.y) < .5) out.face = Math.abs(wn.x) > Math.abs(wn.z) ? { axis: 'x', at: Math.round(hx * 10) / 10 } : { axis: 'y', at: Math.round(hy * 10) / 10 }
+      }
+      return out
     },
+    setHouse: house => { if (exp.world.ready) exp.world.rebuild(house); else exp.on('worldReady', () => exp.world.rebuild(house)) },
     highlight: sel => { exp.world.roomSkins?.highlight(sel); exp.renderer.renderRequested = true },
     pick: (cx, cy) => {
       const cam = exp.camera.instance, r = exp.canvas.getBoundingClientRect()
