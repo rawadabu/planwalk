@@ -23,3 +23,17 @@ export function storeyLooks(design: Design): StoreyLooks {
   }
   return out
 }
+
+/** Parts that can differ per room (the rest are per storey or the whole house). */
+export const ROOM_PARTS = ['floor', 'walls', 'ceiling'] as const
+export type RoomPart = (typeof ROOM_PARTS)[number]
+/** Room-level choices for the 3D engine: drawn over the storey's finish. */
+export function roomLooks(design: Design): Array<{ part: RoomPart; floor: 0 | 1 | 2; room: number; look: Look }> {
+  const out: Array<{ part: RoomPart; floor: 0 | 1 | 2; room: number; look: Look }> = []
+  for (const [key, id] of Object.entries(design.finishes)) {
+    const m = /^(floor|walls|ceiling)@f([0-2])\.r(\d+)$/.exec(key)
+    const look = m && finish(id)?.look
+    if (m && look) out.push({ part: m[1] as RoomPart, floor: Number(m[2]) as 0 | 1 | 2, room: Number(m[3]), look })
+  }
+  return out
+}

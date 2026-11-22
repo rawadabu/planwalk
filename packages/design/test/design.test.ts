@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseHouse } from '@planwalk/house'
-import { DesignDoc, emptyDesign, parseDesign, parseTarget, resolveFinish, storeyLooks, targetKey, validate, finishesFor, BASE, PART_IDS, finish } from '../src/index'
+import { DesignDoc, emptyDesign, parseDesign, parseTarget, resolveFinish, storeyLooks, roomLooks, targetKey, validate, finishesFor, BASE, PART_IDS, finish } from '../src/index'
 
 const house = parseHouse(JSON.parse(readFileSync(new URL('../../../storage/houses/twin-a/house.json', import.meta.url), 'utf8')))
 
@@ -73,4 +73,11 @@ test('undo and redo', () => {
   assert.equal(doc.canRedo, false)
   assert.equal('walls@all' in doc.design.finishes, false)
   doc.markSaved(); assert.equal(doc.dirty, false)
+})
+
+test('room looks: only floor, walls and ceiling, per room', () => {
+  const d = parseDesign({ format: 'design@1', finishes: { 'walls@f1.r6': 'paint-sage', 'floor@f2.r0': 'wood-oak', 'walls@all': 'paint-greige', 'joinery@f1.r1': 'lacquer-navy' } })
+  const L = roomLooks(d)
+  assert.deepEqual(L.map(l => [l.part, l.floor, l.room]).sort(), [['floor', 2, 0], ['walls', 1, 6]])
+  assert.equal(validate(d, house).find(i => i.target === 'joinery@f1.r1')?.level, 'error')
 })

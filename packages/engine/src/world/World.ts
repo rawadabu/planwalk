@@ -5,6 +5,7 @@ import StaticBatcher from './StaticBatcher'
 import Architecture from './components/Architecture'
 import Kit from './components/Kit'
 import Fireplace from './components/Fireplace'
+import RoomSkins from './components/RoomSkins'
 import Furniture from './components/Furniture'
 import Environment from './components/Environment'
 
@@ -36,6 +37,7 @@ export default class World {
     this.kit = new Kit(this)
     this.batcher.flush()
     this.fireplace = new Fireplace(this, this.kit.firePoints, this.materials)
+    this.roomSkins = new RoomSkins(this)
     this.furniture = new Furniture(this, res)
     this.environment = new Environment(this, res, exp.renderer.instance, this.kit)
     // static content: no per-frame matrix work
@@ -64,14 +66,14 @@ export default class World {
   }
 
   // ── design looks: swap materials per part and storey, keeping the base material to come back to ──
-  applyLooks(looks) {
+  applyLooks(looks, rooms: any[] = []) {
     const M = this.materials, G = this.groups
     const KEY = { floor: 'floor', walls: 'wall', ceiling: 'ceil', joinery: 'walnut', worktop: 'quartz', frames: 'metal' }
     // which meshes a part covers on storey f (a storey's ceiling is the underside of the slab above it, or the roof)
     const meshes = (part, f) => {
       const key = KEY[part], out: any[] = []
       const groups = part === 'joinery' || part === 'worktop' ? [G.int[f]] : part === 'ceiling' ? [f < 2 ? G.arch[f + 1] : G.roof] : [G.arch[f]]
-      for (const g of groups) g.traverse(o => { if (o.isMesh && (o.userData.baseKey ?? o.userData.matKey) === key) out.push(o) })
+      for (const g of groups) g.traverse(o => { if (o.isMesh && !o.userData.skin && (o.userData.baseKey ?? o.userData.matKey) === key) out.push(o) })
       return out
     }
     for (const part of Object.keys(KEY)) for (const f of [0, 1, 2]) {
@@ -81,6 +83,7 @@ export default class World {
         m.material = look ? M.lookMaterial(KEY[part], look) : m.userData.baseMat
       }
     }
+    this.roomSkins.apply(rooms)
     this.experience.renderer.requestShadowUpdate()
   }
 
@@ -109,7 +112,7 @@ export default class World {
   dispose() {
     const exp = this.experience
     exp.off('floor', this._onFloor).off('mode', this._onFloor).off('quality', this._onQuality)
-    this.fireplace?.dispose(); this.furniture?.dispose(); this.environment?.dispose(); this.batcher?.dispose(); this.materials?.dispose()
+    this.roomSkins?.dispose(); this.fireplace?.dispose(); this.furniture?.dispose(); this.environment?.dispose(); this.batcher?.dispose(); this.materials?.dispose()
     for (const g of [...this.groups.arch, ...this.groups.int, this.groups.outdoor, this.groups.roof]) { g.clear(); this.scene.remove(g) }
     this.ready = false
   }

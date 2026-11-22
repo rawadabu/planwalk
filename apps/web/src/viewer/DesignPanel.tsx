@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Viewer } from '@planwalk/engine'
+import type { Viewer, SurfaceHit } from '@planwalk/engine'
 import type { House, StoreyId } from '@planwalk/house'
-import { DesignDoc, PARTS, PART_IDS, emptyDesign, finish, finishesFor, resolveFinish, storeyLooks, targetKey, validate, type Design, type Part } from '@planwalk/design'
+import { DesignDoc, PARTS, PART_IDS, ROOM_PARTS, emptyDesign, finish, finishesFor, resolveFinish, roomLooks, storeyLooks, targetKey, validate, type Design, type Part } from '@planwalk/design'
 import { api, ApiError, STATIC, type DesignRow, type HouseMeta } from '../api'
 
-type Scope = 'all' | 'floor'
+type Scope = 'all' | 'floor' | 'room'
+const isRoomPart = (p: Part) => (ROOM_PARTS as readonly string[]).includes(p)
 const FROM_LABEL = { base: 'בסיס', all: 'כל הבית', floor: 'הקומה', room: 'החדר' }
 
 /**
@@ -25,7 +26,7 @@ export function DesignPanel({ viewer, house, houseId, meta, floor, onClose }: { 
   const [busy, setBusy] = useState(false)
   const [newName, setNewName] = useState('')
 
-  const show = useCallback((d: Design) => viewer.applyDesign(storeyLooks(d)), [viewer])
+  const show = useCallback((d: Design) => viewer.applyDesign(storeyLooks(d), roomLooks(d)), [viewer])
   const change = (fn: () => boolean) => { if (fn()) { show(doc.design); setMsg(null); rerender() } }
 
   // load the list of saved designs
@@ -80,9 +81,22 @@ export function DesignPanel({ viewer, house, houseId, meta, floor, onClose }: { 
   }
   const takeTheirs = () => { if (!msg?.theirs || !active) return; doc.reset(msg.theirs.data as Design); setActive({ ...active, version: msg.theirs.version }); show(doc.design); setMsg(null); rerender() }
 
+  // click a surface in the house to select it (A-04)
+  const [sel, setSel] = useState<SurfaceHit | null>(null)
+  useEffect(() => viewer.on('tap', e => {
+    const h = viewer.pickSurface(e.clientX, e.clientY)
+    setSel(h); viewer.highlight(h)
+    if (h) setScope(h.room != null && isRoomPart(h.part) ? 'room' : 'floor')
+  }), [viewer])
+  useEffect(() => () => viewer.highlight(null), [viewer])
+  const clearSel = () => { setSel(null); viewer.highlight(null); setScope('all') }
+
   const issues = useMemo(() => validate(doc.design, house), [doc.design, house])
-  const sc = scope === 'floor' ? { floor } : {}
-  const floorName = house.floors[floor].name
+  const selFloor = (sel?.floor ?? floor) as StoreyId
+  const sc = scope === 'room' && sel?.room != null ? { floor: selFloor, room: sel.room } : scope === 'floor' ? { floor: selFloor } : {}
+  const floorName = house.floors[selFloor].name
+  const parts = scope === 'room' ? PART_IDS.filter(isRoomPart) : PART_IDS
+  const ordered = sel ? [sel.part, ...parts.filter(p => p !== sel.part)].filter(p => parts.includes(p)) : parts
 
   return (
     <section className="panel drawer design" aria-label="עיצוב">
@@ -101,12 +115,20 @@ export function DesignPanel({ viewer, house, houseId, meta, floor, onClose }: { 
         </div>
       ) : <p className="fine">{STATIC ? 'בדמו אפשר לנסות. שמירת עיצובים זמינה באפליקציה המלאה.' : 'אפשר לנסות כאן. שמירה זמינה לצוות הפרויקט.'}</p>}
 
+      {sel ? (
+        <div className="selcard">
+          <span><b>{sel.roomName ?? floorName}</b> · {PARTS[sel.part].he}</span>
+          <button className="btn x" onClick={clearSel} aria-label="ביטול הבחירה">✕</button>
+        </div>
+      ) : <p className="hintline">לחצו על קיר, רצפה, תקרה או ארון בבית כדי לבחור אותו.</p>}
+
       <div className="seg2" role="group" aria-label="היקף השינוי">
         <button className="btn" aria-pressed={scope === 'all'} onClick={() => setScope('all')}>כל הבית</button>
-        <button className="btn" aria-pressed={scope === 'floor'} onClick={() => setScope('floor')}>רק {floorName}</button>
+        <button className="btn" aria-pressed={scope === 'floor'} onClick={() => setScope('floor')}>{floorName}</button>
+        <button className="btn" aria-pressed={scope === 'room'} disabled={sel?.room == null} onClick={() => setScope('room')}>{sel?.roomName ?? 'חדר'}</button>
       </div>
 
-      {PART_IDS.map(part => <PartRow key={part} part={part} design={doc.design} scope={sc}
+      {ordered.map(part => <PartRow key={part} part={part} design={doc.design} scope={sc} selected={sel?.part === part}
         onPick={id => change(() => doc.set(targetKey(part, sc), id))} />)}
 
       {issues.length > 0 && <ul className="issues">{issues.map((i, n) => <li key={n} className={i.level}>{i.message}</li>)}</ul>}
@@ -123,12 +145,12 @@ export function DesignPanel({ viewer, house, houseId, meta, floor, onClose }: { 
   )
 }
 
-function PartRow({ part, design, scope, onPick }: { part: Part; design: Design; scope: { floor?: StoreyId }; onPick: (id: string | null) => void }) {
+function PartRow({ part, design, scope, selected, onPick }: { part: Part; design: Design; scope: { floor?: StoreyId; room?: number }; selected?: boolean; onPick: (id: string | null) => void }) {
   const r = resolveFinish(design, part, scope)
   const own = design.finishes[targetKey(part, scope)] ?? null
   const cur = finish(r.id)
   return (
-    <div className="part">
+    <div className={"part" + (selected ? " on" : "")}>
       <div className="ph"><b>{PARTS[part].he}</b><span className="cur">{cur?.he}<em>{FROM_LABEL[r.from]}</em></span></div>
       <div className="sw" role="radiogroup" aria-label={PARTS[part].he}>
         {finishesFor(part).map(f => (

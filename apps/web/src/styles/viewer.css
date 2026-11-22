@@ -143,3 +143,7 @@
 .drawer .okline{color:#1d7a4f;font-size:12px;margin:0}
 .drawer .warnline{color:#b4690e;font-size:12px;margin:0}
 .drawer .link{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline}
+.drawer .selcard{display:flex;align-items:center;justify-content:space-between;gap:8px;background:color-mix(in srgb,var(--accent) 14%,transparent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:10px;padding:6px 6px 6px 10px;font-size:13px}
+.drawer .hintline{font-size:12px;color:var(--muted);margin:0;padding:8px 10px;border:1px dashed var(--line);border-radius:10px}
+.drawer .part.on{border-top-color:var(--accent)}
+.drawer .part.on .ph b{color:var(--accent)}

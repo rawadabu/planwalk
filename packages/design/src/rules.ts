@@ -14,6 +14,7 @@ export function validate(design: Design, house?: House): Issue[] {
     if (!fin) { issues.push({ target, level: 'error', message: `Unknown finish "${id}"` }); continue }
     const allowed = PARTS[t.part].allowed as readonly string[]
     if (!allowed.includes(fin.category)) issues.push({ target, level: 'error', message: `${fin.en} (${fin.category}) can't be used on ${PARTS[t.part].en.toLowerCase()}` })
+    if (t.room != null && !['floor', 'walls', 'ceiling'].includes(t.part)) { issues.push({ target, level: 'error', message: `${PARTS[t.part].en} is chosen per storey or for the whole house, not per room` }); continue }
     if (house && t.floor != null && t.room != null) {
       const fl = house.floors[t.floor]
       if (!fl || t.room >= fl.indoor) { issues.push({ target, level: 'error', message: 'That room is not in this house' }); continue }

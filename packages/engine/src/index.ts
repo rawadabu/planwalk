@@ -46,9 +46,32 @@ export function createViewer(options: ViewerOptions): Viewer {
       if (!st.active) { if (exp.world.ready) { st.t = t; st.enter() } else exp.on('worldReady', () => { if (!st.active) { st.t = st.target; st.enter() } }) }
     },
     setFinish: (slot, option) => { exp.world.materials?.setFinish(slot, option); exp.renderer.requestRender?.() },
-    applyDesign: looks => { if (exp.world.ready) exp.world.applyLooks(looks); else exp.on('worldReady', () => exp.world.applyLooks(looks)) },
+    applyDesign: (looks, rooms = []) => { if (exp.world.ready) exp.world.applyLooks(looks, rooms); else exp.on('worldReady', () => exp.world.applyLooks(looks, rooms)) },
+    pickSurface: (cx, cy) => {
+      const cam = exp.camera.instance, r = exp.canvas.getBoundingClientRect(), world = exp.world
+      cam.updateMatrixWorld()
+      const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2((cx - r.left) / r.width * 2 - 1, -(cy - r.top) / r.height * 2 + 1), cam)
+      const targets: THREE.Object3D[] = []
+      for (const g of [...world.groups.arch, ...world.groups.int, world.groups.roof]) if (g.visible) g.traverseVisible((o: THREE.Object3D) => { if ((o as THREE.Mesh).isMesh && !o.userData.noPick) targets.push(o) })
+      const hit = ray.intersectObjects(targets, false)[0]
+      if (!hit) return null
+      const key = hit.object.userData.baseKey ?? hit.object.userData.matKey
+      const inArch = world.groups.arch.some(g => g === hit.object.parent)
+      const PART = { floor: 'floor', wall: 'walls', ceil: 'ceiling', walnut: 'joinery', quartz: 'worktop', ...(inArch ? { metal: 'frames' } : {}) }
+      const part = PART[key]; if (!part) return null
+      // step 5 cm off the surface towards the camera, so a wall hit lands in the room it faces
+      const n = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3()
+      if (n.dot(ray.ray.direction) > 0) n.negate()
+      const p = hit.point.clone().addScaledVector(n, .05)
+      const floor = (([2, 1, 0] as StoreyId[]).find(f => p.y >= LEVEL[f] - 0.05) ?? 0)
+      const x = p.x / K, y = p.z / K, fl = world.house.floors[floor]
+      const room = fl.rooms.slice(0, fl.indoor).findIndex(rm => x >= rm[2] && x < rm[4] && y >= rm[3] && y < rm[5])
+      return { part, floor, room: room >= 0 ? room : null, roomName: room >= 0 ? fl.rooms[room][0] : null, x: Math.round(x), y: Math.round(y) }
+    },
+    highlight: sel => { exp.world.roomSkins?.highlight(sel); exp.renderer.renderRequested = true },
     pick: (cx, cy) => {
       const cam = exp.camera.instance, r = exp.canvas.getBoundingClientRect()
+      cam.updateMatrixWorld()
       const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2((cx - r.left) / r.width * 2 - 1, -(cy - r.top) / r.height * 2 + 1), cam)
       const targets: THREE.Object3D[] = []
       for (const g of [...exp.world.groups.arch, ...exp.world.groups.int, exp.world.groups.roof]) if (g.visible) g.traverseVisible((o: THREE.Object3D) => { if ((o as THREE.Mesh).isMesh) targets.push(o) })

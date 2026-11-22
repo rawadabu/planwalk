@@ -27,6 +27,10 @@ export interface Look { color: string; texture?: 'oak' | 'walnut' | 'tile' | 'qu
 export type DesignPart = 'floor' | 'walls' | 'ceiling' | 'joinery' | 'worktop' | 'frames'
 /** Per part, per storey (0, 1, 2): the look to draw, or null for the base model's own material. */
 export type DesignLooks = Partial<Record<DesignPart, [Look | null, Look | null, Look | null]>>
+/** A room's own finish (floor, walls or ceiling), drawn over the storey's. */
+export interface RoomLook { part: 'floor' | 'walls' | 'ceiling'; floor: StoreyId; room: number; look: Look }
+/** What is under the pointer in design mode. room = index into house.floors[floor].rooms (indoor rooms only). */
+export interface SurfaceHit { part: DesignPart; floor: StoreyId; room: number | null; roomName: string | null; x: number; y: number }
 export interface MeasureReading { cm: number; screen: { x: number; y: number }; visible: boolean }
 
 /** Events the viewer emits. The UI subscribes with viewer.on(name, handler). */
@@ -64,7 +68,11 @@ export interface Viewer {
   /** Live finishes: cabinets 'walnut' | 'oak' | 'navy' | 'sage' | 'white'; floor 'tile' | 'oak' | 'concrete' */
   setFinish(slot: 'cabinets' | 'floor', option: string): void
   /** Draw a design over the base model; {} returns to the architect's base. */
-  applyDesign(looks: DesignLooks): void
+  applyDesign(looks: DesignLooks, rooms?: RoomLook[]): void
+  /** Which design surface is under a screen point (floor, walls, ceiling, joinery, worktop, window frames), or null */
+  pickSurface(clientX: number, clientY: number): SurfaceHit | null
+  /** Highlight a room surface while it is being edited; null clears */
+  highlight(sel: { part: DesignPart; floor: StoreyId; room: number | null } | null): void
   /** The surface point under a screen position, or null */
   pick(clientX: number, clientY: number): PlanPoint | null
   /** Screen position (CSS px, relative to the canvas) of a house point; visible = in front of the camera */
