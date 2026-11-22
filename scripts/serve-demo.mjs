@@ -12,7 +12,11 @@ http.createServer((req, res) => {
   const p = decodeURIComponent(new URL(req.url, 'http://x').pathname)
   const base = /^\/(library|houses)\//.test(p) ? storage : root
   const file = path.join(base, p === '/' ? 'index.html' : p)
-  if (!file.startsWith(base) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('Not found') }
+  if (!file.startsWith(base) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+    // the static demo routes with #: /h/twin-a → /#/h/twin-a (page addresses only, not missing files)
+    if (!path.extname(p) && !/^\/(library|houses|assets|img)\//.test(p)) { res.writeHead(302, { location: '/#' + p }); return res.end() }
+    res.writeHead(404); return res.end('Not found')
+  }
   res.writeHead(200, { 'content-type': types[path.extname(file)] || 'application/octet-stream' })
   fs.createReadStream(file).pipe(res)
 }).listen(port, () => console.log(`Planwalk demo: http://localhost:${port}`))
