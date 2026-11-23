@@ -63,6 +63,7 @@ test('the house is built: two storeys, a stair you can climb, no third storey', 
   const { house } = toHouse(plan, { id: 't' })
   assert.ok(house.floors[0].rooms.length > 5 && house.floors[1].rooms.length > 5)
   assert.equal(house.floors[2].rooms.length, 0)
+  assert.equal(house.entry, 0)                                                              // the visit starts at the entrance hall
   assert.ok(house.stairs.path[0]!.length > 10)
   assert.ok(house.items.some(i => i.k === 'steps'))
   assert.match(house.source.note ?? '', /CAD drawing/)

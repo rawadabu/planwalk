@@ -135,6 +135,13 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
     storey: { height: H, slab: .25, assumed: true }, floors: floors as House['floors'], void: [],
     stairs: walkable(flights, floors, plan), canopies: [], site, items,
   }
+  // a house of one or two storeys is entered on the storey that names an entrance, else on its lowest one
+  // (three-storey plans keep the viewer's default: the middle storey)
+  if (top < 2) {
+    const entrance = plan.storeys.filter(s => s.storey >= 0 && s.rooms.some(r => !r.outdoor && /מבוא|כניסה|לובי/.test(r.name))).map(s => s.storey).sort((a, b) => a - b)[0]
+    const entryStorey = Math.max(0, entrance ?? bottom)
+    if (entryStorey !== 1) house.entry = entryStorey as StoreyId
+  }
   return { house, maps, warnings }
 }
 

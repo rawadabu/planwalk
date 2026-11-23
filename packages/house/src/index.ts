@@ -74,6 +74,8 @@ export const House = z.object({
     street: z.enum(['x+', 'x-', 'y+', 'y-']),
     twin: z.object({ side: z.enum(['x+', 'x-']), at: z.number() }).optional(),
   }).optional(),
+  /** the storey a visitor arrives on (the one with the entrance); the viewer starts there. Storey 1 when not stated. */
+  entry: z.number().int().min(0).max(2).optional(),
   items: z.array(Item),
 })
 

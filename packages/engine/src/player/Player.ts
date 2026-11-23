@@ -27,7 +27,10 @@ export default class Player {
     this.collision = new Collision(house)
     this.floors = house.floors
     this.stairs = house.stairs
-    const s = this.floors[1].start
+    // the visit starts on the storey with the entrance
+    const entry = house.entry ?? 1
+    this.experience.state.floor = entry
+    const s = this.floors[entry].start
     Object.assign(this.p, { x: s.x, y: s.y }); this.look.yaw = s.yaw
     this.ready = true
   }
