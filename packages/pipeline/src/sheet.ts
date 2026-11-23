@@ -37,7 +37,7 @@ export interface PlanNote { text: string; at: Pt; box: Box; kind: 'fixture' | 'r
 export interface PlanStorey { storey: number; name: string; title: string | null; drawing: number; side: 'left' | 'right' | 'whole'; place: Place; match: number; /** x of the party wall when this is one unit of a twin house */ party: number | null; bounds: Box; walls: Poly[]; openings: PlanOpening[]; rooms: PlanRoom[]; notes: PlanNote[]; stairs: Stair[]; railings: Box[]; strokes: Stroke[] }
 export interface Plan {
   format: 'plan@1'
-  scale: { ptPerCm: number; pxPerPt: number; from: 'dimensions' | 'assumed'; dimensions: number; agree: number; written: number | null }
+  scale: { ptPerCm: number; pxPerPt: number; from: 'dimensions' | 'assumed' | 'drawing'; dimensions: number; agree: number; written: number | null }
   storeys: PlanStorey[]
   warnings: string[]
 }

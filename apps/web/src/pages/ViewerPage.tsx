@@ -127,7 +127,7 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
             {isClient
               ? <button className="send" aria-pressed={drawer === 'send'} onClick={() => setDrawer(drawer === 'send' ? null : 'send')}><b>➤</b>לאדריכל</button>
               : <button aria-pressed={drawer === 'sun'} onClick={() => setDrawer(drawer === 'sun' ? null : 'sun')}><b>☀</b>שעה</button>}
-            <button onClick={() => viewer.setFloor(((ui.floor + 1) % 3) as 0 | 1 | 2)}><b>⇅</b>{ui.house.floors[((ui.floor + 1) % 3) as 0 | 1 | 2].name}</button>
+            {(() => { const floors = ui.house?.floors; if (!floors) return null; const next = [1, 2, 3].map(d => ((ui.floor + d) % 3) as 0 | 1 | 2).find(f => floors[f].rooms.length > 0) ?? ui.floor; return <button onClick={() => viewer.setFloor(next)}><b>⇅</b>{floors[next].name}</button> })()}
             <button aria-pressed={moreOpen} onClick={() => setMoreOpen(o => !o)}><b>⋯</b>עוד</button>
           </nav>
           <div className="panel hint">הליכה: <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> או חיצים · גרירה כדי להסתכל · <kbd>Shift</kbd> מהר יותר</div>

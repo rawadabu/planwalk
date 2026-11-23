@@ -38,7 +38,7 @@ export default function ReviewPage() {
         <div className="eyebrow">Review · {up.fileName}</div>
         <h1>What we understood from the plans</h1>
         <p className="lede">
-          {sc.from === 'dimensions' ? <>Scale taken from <b>{sc.agree}</b> written dimensions{sc.written && Math.abs(72 / 2.54 / sc.written / sc.ptPerCm - 1) > .03 ? <> (the sheet says 1:{sc.written}, but it is not plotted to that scale)</> : null}. </> : <>No dimensions could be read; the scale is assumed. </>}
+          {sc.from === 'drawing' ? <>Read from the CAD drawing itself: real dimensions, no scale to guess. </> : sc.from === 'dimensions' ? <>Scale taken from <b>{sc.agree}</b> written dimensions{sc.written && Math.abs(72 / 2.54 / sc.written / sc.ptPerCm - 1) > .03 ? <> (the sheet says 1:{sc.written}, but it is not plotted to that scale)</> : null}. </> : <>No dimensions could be read; the scale is assumed. </>}
           {unsureRooms + unsureOpenings === 0 ? 'Nothing needs your attention.' : <>
             {unsureRooms > 0 && <><b>{unsureRooms}</b> room{unsureRooms === 1 ? ' has' : 's have'} no name on the plans. </>}
             {unsureOpenings > 0 && <><b>{unsureOpenings}</b> opening{unsureOpenings === 1 ? '' : 's'} could be a window or a glass door. </>}

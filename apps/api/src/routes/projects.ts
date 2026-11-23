@@ -129,14 +129,15 @@ export async function projectRoutes(app: FastifyInstance) {
     return row
   })
 
-  // Upload the architect's plans (PDF) → starts the processing pipeline (status: uploaded)
+  // Upload the architect's plans (PDF or DWG) → starts the processing pipeline (status: uploaded)
   app.post<{ Params: { id: string } }>('/api/projects/:id/uploads', async (req, reply) => {
     const ctx = await requireProject(req, reply, req.params.id, 'upload', 'create'); if (!ctx) return
     const part = await req.file({ limits: { fileSize: config.maxUploadBytes, files: 1 } })
-    if (!part) return reply.code(400).send({ error: 'Attach the plans as a PDF' })
+    if (!part) return reply.code(400).send({ error: 'Attach the plans as a PDF or DWG file' })
     const buf = await part.toBuffer()
     if (part.file.truncated) return reply.code(413).send({ error: 'The file is larger than 50 MB' })
-    if (buf.subarray(0, 5).toString() !== '%PDF-') return reply.code(400).send({ error: 'Upload the plans as a PDF file' })
+    const kind = buf.subarray(0, 5).toString() === '%PDF-' ? 'pdf' : /^AC10\d\d$/.test(buf.subarray(0, 6).toString('latin1')) ? 'dwg' : null
+    if (!kind) return reply.code(400).send({ error: 'Upload the plans as a PDF or an AutoCAD DWG file' })
     // ?house=<id>: these are updated plans of a house this project already has
     const targetId = (req.query as { house?: string }).house
     let target: string | null = null
@@ -146,7 +147,7 @@ export async function projectRoutes(app: FastifyInstance) {
       target = t.id
     }
     const id = randomUUID()
-    const key = `projects/${ctx.project.id}/${id}.pdf`
+    const key = `projects/${ctx.project.id}/${id}.${kind}`
     await storage.write(key, buf)
     const [row] = await db.insert(planUpload).values({ id, projectId: ctx.project.id, fileKey: key, fileName: part.filename.replace(/[^\w.\- ]/g, '_').slice(0, 120), sizeBytes: buf.length, targetHouseId: target, createdBy: ctx.session.user.id }).returning()
     void buildUpload(row.id)                                 // build in the background; the page polls /api/uploads/:id

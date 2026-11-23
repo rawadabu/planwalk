@@ -187,7 +187,7 @@ function HouseCard({ house, canShare, canUpdate, projectId, onChange }: { house:
       <div className="house-head">
         <span><b>{house.title}</b><small>{house.version ? `Version ${house.version} · ` : 'Not approved yet · '}{house.public ? 'Public demo' : 'Private · members, clients and share links only'}</small></span>
         <Link className="btn sm primary" to={`/h/${house.id}`}>Open walkthrough</Link>
-        {canUpdate && !!house.version && <label className={'btn sm filebtn' + (upBusy ? ' busy' : '')}>{upBusy ? 'Uploading…' : 'Upload updated plans'}<input type="file" accept="application/pdf" disabled={upBusy} onChange={e => { update(e.target.files?.[0]); e.target.value = '' }} /></label>}
+        {canUpdate && !!house.version && <label className={'btn sm filebtn' + (upBusy ? ' busy' : '')}>{upBusy ? 'Uploading…' : 'Upload updated plans'}<input type="file" accept="application/pdf,.pdf,.dwg" disabled={upBusy} onChange={e => { update(e.target.files?.[0]); e.target.value = '' }} /></label>}
         {canShare && <button className="btn sm" aria-expanded={open} onClick={() => setOpen(!open)}>Share</button>}
       </div>
       {upMsg && <p className={upMsg.ok ? 'ok' : 'bad'} role="status">{upMsg.text}</p>}
@@ -280,8 +280,8 @@ function UploadForm({ projectId, onDone }: { projectId: string; onDone: () => vo
       try { await api.uploadPlans(projectId, file); setMsg({ ok: true, text: `${file.name} uploaded. Processing starts automatically.` }); input.value = ''; onDone() }
       catch (err) { setMsg({ ok: false, text: (err as Error).message }) } finally { setBusy(false) }
     }}>
-      <label htmlFor="pdf">Architect's plans (PDF, up to 50 MB)</label>
-      <div><input id="pdf" name="pdf" type="file" accept="application/pdf" required /><button className="btn sm primary" disabled={busy}>{busy ? 'Uploading…' : 'Upload'}</button></div>
+      <label htmlFor="pdf">Architect's plans (PDF or DWG, up to 50 MB)</label>
+      <div><input id="pdf" name="pdf" type="file" accept="application/pdf,.pdf,.dwg" required /><button className="btn sm primary" disabled={busy}>{busy ? 'Uploading…' : 'Upload'}</button></div>
       {msg && <p className={msg.ok ? 'ok' : 'bad'} role="status">{msg.text}</p>}
     </form>
   )

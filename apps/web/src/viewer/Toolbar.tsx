@@ -22,7 +22,8 @@ export function Toolbar({ viewer, ui, measuring, setMeasuring, drawer, setDrawer
       {!location.pathname.startsWith("/s/") && <Link className="btn" to="story">סיפור הבנייה</Link>}
       <span className="sep" />
       <div className="seg" role="group" aria-label="קומה">
-        {FLOORS.map(([f, label]) => <button key={f} className="btn" aria-pressed={ui.floor === f} onClick={() => viewer.setFloor(f)}>{label}</button>)}
+        {/* a house of two storeys has no third button (an empty storey has no rooms) */}
+        {FLOORS.filter(([f]) => (ui.house?.floors[f].rooms.length ?? 1) > 0).map(([f, label]) => <button key={f} className="btn" aria-pressed={ui.floor === f} onClick={() => viewer.setFloor(f)}>{label}</button>)}
       </div>
       <span className="sep" />
       <button className="btn" aria-pressed={ui.mode === 'walk' || ui.mode === 'trans'} onClick={() => viewer.setMode('walk')}>הליכה</button>

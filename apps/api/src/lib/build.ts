@@ -1,18 +1,20 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
-import { readLayers, allLabels, readLabels, understand, toHouse, roomViews, toWorld, type Plan, type Read } from '@planwalk/pipeline'
+import { readLayers, allLabels, readLabels, understand, readDwg, understandCad, toHouse, roomViews, toWorld, type Plan, type Read } from '@planwalk/pipeline'
 import { db } from '../db/client.js'
 import { house, planUpload, project } from '../db/schema.js'
 import { storage } from './storage.js'
 import { snapshot } from './versions.js'
 
 /**
- * Plans → walkable house. Runs after an upload: reads the PDF's CAD layers, reads its labels (Claude API, cached per
- * file), understands storeys / rooms / openings, and writes the house next to its plan. The upload then waits in
+ * Plans → walkable house. Runs after an upload. A PDF: reads its CAD layers, reads its labels (Claude API, cached per
+ * file), understands storeys / rooms / openings. A DWG: the drawing itself is read (real units, real text), no model
+ * involved. Either way the house is written next to its plan. The upload then waits in
  * `review` for the architect; nothing is shown to clients before that.
  */
 export interface BuildReport {
-  readings: 'api' | 'cache' | 'none'
+  /** how the written labels were read: by the reading model, from its cache, not at all, or straight from a CAD drawing */
+  readings: 'api' | 'cache' | 'none' | 'drawing'
   scale: Plan['scale']
   warnings: string[]
   storeys: Array<{ storey: number; name: string; title: string | null; rooms: number; unsureRooms: number; openings: number; unsureOpenings: number; stairs: number }>
@@ -44,19 +46,25 @@ export async function buildUpload(uploadId: string): Promise<void> {
   if (!up) return
   try {
     await db.update(planUpload).set({ status: 'extracting', error: null }).where(eq(planUpload.id, uploadId))
-    const pdf = await storage.read(up.fileKey)
-    const L = await readLayers(new Uint8Array(pdf))
-    const A = allLabels(L), labels = [...A.text, ...A.dims]
-    // label readings: cached per file, so the same plans are never read (or billed) twice
-    const cacheKey = `readings/${createHash('sha256').update(pdf).digest('hex')}.json`
-    let read = new Map<number, Read>(), source: BuildReport['readings'] = 'none'
-    if (await storage.exists(cacheKey)) { read = new Map((JSON.parse((await storage.read(cacheKey)).toString()) as Array<Read & { id: number }>).map(r => [r.id, r])); source = 'cache' }
-    else if (process.env.ANTHROPIC_API_KEY && labels.length) {
-      read = await readLabels(labels)
-      await storage.write(cacheKey, JSON.stringify([...read.values()]))
-      source = 'api'
+    const file = await storage.read(up.fileKey)
+    let plan: Plan, source: BuildReport['readings'] = 'none'
+    if (file.subarray(0, 4).toString('latin1') === 'AC10') {
+      plan = understandCad(await readDwg(new Uint8Array(file)))
+      source = 'drawing'
+    } else {
+      const L = await readLayers(new Uint8Array(file))
+      const A = allLabels(L), labels = [...A.text, ...A.dims]
+      // label readings: cached per file, so the same plans are never read (or billed) twice
+      const cacheKey = `readings/${createHash('sha256').update(file).digest('hex')}.json`
+      let read = new Map<number, Read>()
+      if (await storage.exists(cacheKey)) { read = new Map((JSON.parse((await storage.read(cacheKey)).toString()) as Array<Read & { id: number }>).map(r => [r.id, r])); source = 'cache' }
+      else if (process.env.ANTHROPIC_API_KEY && labels.length) {
+        read = await readLabels(labels)
+        await storage.write(cacheKey, JSON.stringify([...read.values()]))
+        source = 'api'
+      }
+      plan = understand(L, read)
     }
-    const plan = understand(L, read)
     // updated plans keep what the architect already corrected on the plans they replace
     if (up.targetHouseId && await storage.exists(`houses/${up.targetHouseId}/plan.full.json`)) inherit(plan, JSON.parse((await storage.read(`houses/${up.targetHouseId}/plan.full.json`)).toString()) as Plan)
     const extra = source === 'none' ? ['the labels were not read (no reading key on the server): rooms are unnamed and the scale is taken as 1:100'] : []

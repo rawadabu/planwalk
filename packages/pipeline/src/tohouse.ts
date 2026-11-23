@@ -131,7 +131,7 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
   if (plan.storeys.some(s => s.storey < 0 || s.storey > 2)) warnings.push('storeys outside ground…second are not built yet')
   const house: House = {
     format: 'house@1', id: opts.id ?? 'auto', title: opts.title ?? 'בית מתוכנית',
-    source: { file: opts.file ?? 'plan.pdf', scale: plan.scale.written ? `1:${plan.scale.written}` : '1:100', pxPerMetre: PX_PER_M, note: `pipeline v2 · scale from ${plan.scale.agree} dimensions` },
+    source: { file: opts.file ?? 'plan.pdf', scale: plan.scale.written ? `1:${plan.scale.written}` : '1:100', pxPerMetre: PX_PER_M, note: plan.scale.from === 'drawing' ? 'pipeline v2 · CAD drawing, real units' : `pipeline v2 · scale from ${plan.scale.agree} dimensions` },
     storey: { height: H, slab: .25, assumed: true }, floors: floors as House['floors'], void: [],
     stairs: walkable(flights, floors, plan), canopies: [], site, items,
   }
