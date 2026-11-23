@@ -89,5 +89,12 @@
   "storey": 2,
   "file": "render_f2-12.jpg",
   "seconds": 202
+ },
+ {
+  "id": "f2-13",
+  "name": "מקלחת",
+  "storey": 2,
+  "file": "render_f2-13.jpg",
+  "seconds": 270
  }
 ]
