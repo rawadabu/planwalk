@@ -325,6 +325,8 @@ export function analyse(walls: Poly[], ops: PxOpening[], strokes: Stroke[], labe
       for (const [key, b] of open) if (!seen.has(key)) { rooms[Number(key.split(':')[0])].tiles.push([Math.round(g.ox + b[0] * TILE), Math.round(g.oy + b[1] * TILE), Math.round(g.ox + b[2] * TILE), Math.round(g.oy + b[3] * TILE)]); open.delete(key) }
     }
   }
+  // a room named from outside has no place for its name yet: the middle of its largest piece of floor
+  for (const r of rooms) if (!r.at && r.name && !r.outdoor && r.tiles.length) { const t = [...r.tiles].sort((a, b) => (b[2] - b[0]) * (b[3] - b[1]) - (a[2] - a[0]) * (a[3] - a[1]))[0]; r.at = [Math.round((t[0] + t[2]) / 2), Math.round((t[1] + t[3]) / 2)] }
   for (const r of rooms) if (!r.name) { const W = (r.rect[2] - r.rect[0]) / PX_PER_M, D = (r.rect[3] - r.rect[1]) / PX_PER_M; r.name = Math.min(W, D) < 1.7 ? 'מעבר' : 'חלל' }
 
   // openings: a door swing is a door; glazing is a glass door when it opens onto a named outdoor space or is very wide
