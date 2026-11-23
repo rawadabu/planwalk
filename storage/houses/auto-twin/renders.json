@@ -26,5 +26,12 @@
   "storey": 0,
   "file": "render_f0-3.jpg",
   "seconds": 163
+ },
+ {
+  "id": "f1-4",
+  "name": "מטבחון",
+  "storey": 1,
+  "file": "render_f1-4.jpg",
+  "seconds": 149
  }
 ]
