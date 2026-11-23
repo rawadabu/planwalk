@@ -75,5 +75,12 @@
   "storey": 2,
   "file": "render_f2-10.jpg",
   "seconds": 139
+ },
+ {
+  "id": "f2-11",
+  "name": "פ\"ישיבה",
+  "storey": 2,
+  "file": "render_f2-11.jpg",
+  "seconds": 251
  }
 ]
