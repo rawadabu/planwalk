@@ -145,5 +145,19 @@
   "storey": 2,
   "file": "render_f2-20.jpg",
   "seconds": 389
+ },
+ {
+  "id": "x-21",
+  "name": "חזית הרחוב",
+  "storey": 0,
+  "file": "render_x-21.jpg",
+  "seconds": 201
+ },
+ {
+  "id": "x-22",
+  "name": "חזית הגינה",
+  "storey": 0,
+  "file": "render_x-22.jpg",
+  "seconds": 75
  }
 ]
