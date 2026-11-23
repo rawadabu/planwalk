@@ -19,6 +19,17 @@ const LEVELS: Array<[Brief['level'], string, string]> = [['minimal', 'מינימ
  * plants, balconies and the garden), so nobody starts from an empty house. Everything it places can then be moved or
  * removed like any other piece.
  */
+/** Stage the house with the first design for these answers (finishes, furniture, garden), as one step of the design. */
+export function stage(viewer: Viewer, house: House, session: DesignSession, onHouse: (h: House) => void, brief: Brief): number {
+  const doc = session.doc, d = firstDesign(house, brief)
+  doc.apply([
+    ...Object.keys(doc.design.finishes).filter(k => !(k in d.finishes)).map(k => ({ target: k, id: null })), ...Object.entries(d.finishes).map(([k, id]) => ({ target: k, id })),
+    ...Object.keys(doc.design.edits).filter(k => !(k in d.edits)).map(k => ({ target: 'edit:' + k, id: null })), ...Object.entries(d.edits).map(([k, e]) => ({ target: 'edit:' + k, id: JSON.stringify(e) })),
+  ])
+  renderDesign(viewer, house, session, onHouse, doc.design)
+  return Object.values(d.edits).filter(e => e.k === 'add').length
+}
+
 export function BriefPanel({ viewer, house, houseId, meta, session, onHouse, onClose, onChanged }: { viewer: Viewer; house: House; houseId: string; meta: HouseMeta | null; session: DesignSession; onHouse: (h: House) => void; onClose: () => void; onChanged: () => void }) {
   const [b, setB] = useState<Brief>(() => storedBrief(houseId) ?? DEFAULT_BRIEF)
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [done, setDone] = useState<number | null>(null)

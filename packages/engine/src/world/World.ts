@@ -15,6 +15,7 @@ import Environment from './components/Environment'
 //   int[f]  = interior of storey f (only the active storey and the one you can see through the void are drawn)
 import Neighbourhood from './components/Neighbourhood'
 import { setStorey } from './units'
+import PlanCaps from './components/PlanCaps'
 
 export default class World {
   [key: string]: any
@@ -38,6 +39,7 @@ export default class World {
     setStorey(this.house.storey?.height, this.house.storey?.slab)              // before anything is built: every height follows
     this.materials = new Materials(res, res.maxAniso)
     this.batcher = new StaticBatcher(this.materials, this.groups)
+    this.caps?.dispose(); this.caps = new PlanCaps(this)
     this.architecture = new Architecture(this)
     this.kit = new Kit(this)
     this.neighbourhood = new Neighbourhood(this)
@@ -63,6 +65,7 @@ export default class World {
     setStorey(house.storey?.height, house.storey?.slab)
     this.batcher.dispose(); this.fireplace?.dispose(); this.roomSkins?.dispose()
     if (exp.story?.built) { exp.story.dispose(); exp.story.built = false }
+    this.caps?.dispose(); this.caps = new PlanCaps(this)
     this.architecture = new Architecture(this)
     this.kit = new Kit(this)
     this.neighbourhood = new Neighbourhood(this)
@@ -101,6 +104,7 @@ export default class World {
     const seeInt = { 0: [0], 1: [1, 2], 2: [1, 2] }[floor]
     this.groups.int.forEach((g, i) => { g.visible = outside ? i > 0 : top ? i <= floor && i >= floor - 1 : seeInt.includes(i) })
     this.groups.roof.visible = !top
+    this.caps?.show(top ? floor : -1)                // the plan's cut through the walls
     this.environment.placeLamps(floor)
     this.environment.useProbe()
   }

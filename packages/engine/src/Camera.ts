@@ -25,8 +25,13 @@ export default class Camera {
     this.instance.updateProjectionMatrix()
   }
   topPose(floorY) {
-    this.orbit.target.set(X(575), floorY, Z(840))
-    const pos = new THREE.Vector3(X(575), floorY + 15.5, Z(1720))
+    // over the middle of the storey on show, almost straight down (a plan with a little depth), far enough to see all of it
+    const exp = this.experience, b = exp.world?.house?.floors?.[exp.state.floor]?.bounds
+    if (!b || b[2] - b[0] < 200) { this.orbit.target.set(X(575), floorY, Z(840)); const p0 = new THREE.Vector3(X(575), floorY + 15.5, Z(1720)); return { pos: p0, q: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(p0, this.orbit.target, THREE.Object3D.DEFAULT_UP)) } }
+    const cx = X((b[0] + b[2]) / 2), cz = Z((b[1] + b[3]) / 2), w = X(b[2] - b[0]) + 2, d = Z(b[3] - b[1]) + 2
+    const t = Math.tan(this.instance.fov * Math.PI / 360), dist = Math.max(d / 2 / t, w / 2 / (t * this.instance.aspect)) * 1.12 + 2.8
+    this.orbit.target.set(cx, floorY, cz)
+    const pos = new THREE.Vector3(cx, floorY + dist, cz + dist * .16)
     const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(pos, this.orbit.target, THREE.Object3D.DEFAULT_UP))
     return { pos, q }
   }

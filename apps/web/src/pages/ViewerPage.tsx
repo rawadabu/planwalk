@@ -11,7 +11,8 @@ import { DesignPanel, newDesignSession, renderDesign } from '../viewer/DesignPan
 import { SendPanel } from '../viewer/Send'
 import { VersionsPanel } from '../viewer/Versions'
 import { FurnishPanel } from '../viewer/Furnish'
-import { BriefPanel, storedBrief } from '../viewer/Brief'
+import { BriefPanel, storedBrief, stage } from '../viewer/Brief'
+import { DEFAULT_BRIEF } from '@planwalk/design'
 import { RealViewPanel } from '../viewer/RealView'
 import { KitchenPanel } from '../viewer/KitchenPanel'
 import { CostPanel } from '../viewer/Cost'
@@ -78,7 +79,13 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
   useEffect(() => { setUnseen(!!meta?.version?.unseen) }, [meta])
   useEffect(() => { if (viewer && base && meta?.version?.unseen && !announced.current) { announced.current = true; setDrawer('versions') } }, [viewer, base, meta])
   // the static demo opens with the questionnaire once, so the house is not shown empty
-  useEffect(() => { if (STATIC && viewer && base && !asked.current && !storedBrief(houseId)) { asked.current = true; setDrawer(d => d ?? 'brief') } }, [viewer, base, houseId])
+  // the demo never shows a bare house: until the visitor answers the questionnaire it is staged with the default answers
+  useEffect(() => {
+    if (!STATIC || !viewer || !base || asked.current) return
+    asked.current = true
+    const doc = design.current.doc, empty = Object.keys(doc.design.finishes).length + Object.keys(doc.design.edits).length === 0
+    if (empty) { try { stage(viewer, base, design.current, setEdited, storedBrief(houseId) ?? DEFAULT_BRIEF); bump(n => n + 1) } catch { setDrawer(d => d ?? 'brief') } }
+  }, [viewer, base, houseId])
   const myNotes = comments.list.filter(c => !c.parentId && !c.resolved && c.mine).length
 
   return (
