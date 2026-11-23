@@ -1,0 +1,189 @@
+<title>Planwalk AI Tour</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap">
+<style>
+  /* one immersive look: a dark frame around full-screen 360° rooms */
+  :root { --bg: #0f1012; --fg: #f6f2ea; --muted: #c9c3b8; --panel: rgba(18, 19, 22, .76); --line: rgba(255, 255, 255, .16); --accent: #ecc98f; --ink: #1b1a17; --paper: #f7f4ee; color-scheme: dark; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--fg); font-family: "Heebo", system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  button { font: inherit; }
+  #stage { position: fixed; inset: 0; touch-action: none; }
+  #stage canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  #stage.drag canvas { cursor: grabbing; }
+  #veil { position: fixed; inset: 0; background: var(--bg); opacity: 0; pointer-events: none; transition: opacity .28s ease; }
+  #veil.on { opacity: 1; }
+  .glass { background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .bar { position: fixed; left: 0; right: 0; display: flex; pointer-events: none; direction: rtl;
+         padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .bar.top { top: 0; padding-top: calc(14px + env(safe-area-inset-top, 0px)); justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .bar.bottom { bottom: 0; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); flex-direction: column; align-items: center; gap: 10px; }
+  .card { pointer-events: auto; border-radius: 14px; padding: 10px 14px; min-width: 0; }
+  .card small { display: block; font-size: 11.5px; letter-spacing: .04em; color: var(--muted); }
+  .card h1 { font-size: 19px; font-weight: 700; margin: 0; }
+  .map { pointer-events: auto; border-radius: 14px; padding: 8px; width: min(210px, 42vw); direction: ltr; }
+  .map .tabs { display: flex; gap: 4px; margin-bottom: 6px; direction: rtl; }
+  .map .tabs button { flex: 1; font-size: 12px; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 5px 4px; cursor: pointer; }
+  .map .tabs button[aria-pressed="true"] { background: var(--accent); color: var(--ink); border-color: transparent; font-weight: 700; }
+  .map .plan { position: relative; background: var(--paper); border-radius: 8px; overflow: hidden; }
+  .map .plan img { display: block; width: 100%; height: auto; }
+  .map .dot { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 0; padding: 0; background: transparent; cursor: pointer; }
+  .map .dot::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: #5b6470; box-shadow: 0 0 0 2px #fff; }
+  .map .dot[aria-current="true"]::after { inset: 4px; background: #d2452f; }
+  .map .dot:focus-visible { outline: 2px solid #d2452f; }
+  .seg { pointer-events: auto; display: flex; gap: 4px; border-radius: 999px; padding: 4px; }
+  .seg button { font-size: 14px; font-weight: 500; color: var(--fg); background: transparent; border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--ink); font-weight: 700; }
+  .seg button:focus-visible, .spot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hint { font-size: 13px; background: var(--panel); border-radius: 999px; padding: 6px 14px; transition: opacity .6s; }
+  .hint.gone { opacity: 0; }
+  #spots { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .spot { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; display: flex; align-items: center; gap: 8px; direction: rtl; white-space: nowrap;
+          color: var(--ink); background: rgba(250, 246, 238, .94); border: 0; border-radius: 999px; padding: 8px 14px 8px 10px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 22px rgba(0, 0, 0, .35); }
+  .spot i { width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--paper); display: grid; place-items: center; font-style: normal; font-size: 13px; }
+  .spot:hover { background: #fff; }
+  #msg { position: fixed; inset: 0; display: grid; place-items: center; font-size: 15px; color: var(--muted); pointer-events: none; direction: rtl; text-align: center; padding: 24px; }
+  @media (max-width: 520px) { .card h1 { font-size: 16px; } .seg button { padding: 9px 12px; font-size: 13px; } .spot { font-size: 13px; padding: 7px 12px 7px 8px; } }
+</style>
+<div id="stage" aria-label="חדר ב-360 מעלות, גררו כדי להסתכל מסביב"></div>
+<div id="spots"></div>
+<div id="veil"></div>
+<div id="msg">טוען את הבית…</div>
+<div class="bar top">
+  <div class="card glass"><small id="floorName"></small><h1 id="roomName"></h1></div>
+  <div class="map glass" aria-label="מפת הבית">
+    <div class="tabs" id="tabs"></div>
+    <div class="plan" id="plan"><img id="planImg" alt="תוכנית הקומה"></div>
+  </div>
+</div>
+<div class="bar bottom">
+  <div class="hint" id="hint">גררו כדי להסתכל מסביב · לחצו על שם חדר כדי לעבור אליו</div>
+  <div class="seg glass" role="group" aria-label="מה מוצג">
+    <button id="bAi" aria-pressed="true">עיצוב AI</button>
+    <button id="bBase" aria-pressed="false">המבנה מהתוכנית</button>
+  </div>
+</div>
+<script src="three.js"></script>
+<script>
+(function () {
+  var DATA = /*DATA*/null
+  var $ = function (id) { return document.getElementById(id) }
+  var stage = $('stage'), msg = $('msg'), hint = $('hint'), veil = $('veil'), spots = $('spots')
+  if (!window.THREE || !DATA) { msg.textContent = 'לא ניתן לטעון את הסיור. נסו לרענן.'; return }
+  var renderer
+  try { renderer = new THREE.WebGLRenderer({ antialias: true }) } catch (e) { msg.textContent = 'הדפדפן הזה לא תומך בתצוגת תלת-ממד.'; return }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+  stage.appendChild(renderer.domElement)
+  var scene3 = new THREE.Scene(), cam = new THREE.PerspectiveCamera(72, 1, .1, 2000)
+  cam.rotation.order = 'YXZ'
+  function sphere(radius) { var g = new THREE.SphereGeometry(radius, 96, 48); g.scale(-1, 1, 1); var m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })); scene3.add(m); return m }
+  var ai = sphere(500), base = sphere(480)                      // the plan model sits inside and fades in over the design
+  var loader = new THREE.TextureLoader(), cache = {}
+  function tex(url) {
+    if (!cache[url]) cache[url] = new Promise(function (ok, bad) { loader.load(url, function (t) { if (THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); ok(t) }, undefined, function () { delete cache[url]; bad(new Error(url)) }) })
+    return cache[url]
+  }
+  var byId = {}; DATA.scenes.forEach(function (s) { byId[s.id] = s })
+  // the picture's x is the plan's x and its z the plan's y: looking along plan direction (dx, dy) is this yaw
+  function yawOf(dx, dy) { return Math.atan2(-dx, -dy) }
+  var cur = null, yaw = 0, pitch = -.04, fov = 72, showBase = 0, touched = false, busy = false
+  function size() { var w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); cam.aspect = w / Math.max(1, h); cam.fov = cam.aspect < 1 ? Math.min(100, fov + 14) : fov; cam.updateProjectionMatrix() }
+  window.addEventListener('resize', size); size()
+
+  function buildSpots() {
+    spots.textContent = ''
+    cur.links.forEach(function (l) {
+      if (!byId[l.to]) return
+      var b = document.createElement('button'); b.className = 'spot'; b.type = 'button'
+      var i = document.createElement('i'); i.textContent = l.up > 0 ? '↑' : l.up < 0 ? '↓' : '←'; b.appendChild(i); b.appendChild(document.createTextNode(l.name))
+      b.addEventListener('click', function () { go(l.to, l.up ? null : yawOf(l.ax, l.ay)) })
+      var len = Math.hypot(l.dx, l.dy) || 1
+      l._v = new THREE.Vector3(l.dx / len, l.up ? .05 * l.up - .12 : -.16, l.dy / len); l._el = b
+      spots.appendChild(b)
+    })
+  }
+  function placeSpots() {
+    if (!cur) return
+    var w = stage.clientWidth, h = stage.clientHeight, fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)
+    var shown = []
+    cur.links.forEach(function (l) {
+      if (!l._el) return
+      var p = l._v.clone().multiplyScalar(100), ahead = l._v.dot(fwd) > .15
+      p.project(cam)
+      var x = (p.x * .5 + .5) * w, y = Math.max(110, Math.min(h - 150, (-p.y * .5 + .5) * h)), on = ahead && x > -80 && x < w + 80
+      l._el.style.display = on ? '' : 'none'
+      if (on) shown.push({ el: l._el, x: x, y: y })
+    })
+    // names that would sit on top of each other are stacked
+    shown.sort(function (a, b) { return a.x - b.x })
+    shown.forEach(function (s, i) { for (var k = 0; k < i; k++) { var o = shown[k]; if (Math.abs(o.x - s.x) < 150 && Math.abs(o.y - s.y) < 42) s.y = o.y + 44 } s.el.style.left = s.x + 'px'; s.el.style.top = s.y + 'px' })
+  }
+  function drawMap() {
+    var f = String(cur.floor), b = DATA.bounds[f], plan = $('plan')
+    $('planImg').src = 'plan_f' + f + '.svg'
+    Array.prototype.slice.call(plan.querySelectorAll('.dot')).forEach(function (d) { d.remove() })
+    DATA.scenes.forEach(function (s) {
+      if (String(s.floor) !== f) return
+      var d = document.createElement('button'); d.className = 'dot'; d.type = 'button'; d.title = s.name; d.setAttribute('aria-label', s.name)
+      if (s.id === cur.id) d.setAttribute('aria-current', 'true')
+      d.style.left = (s.x - b[0]) / (b[2] - b[0]) * 100 + '%'; d.style.top = (s.y - b[1]) / (b[3] - b[1]) * 100 + '%'
+      d.addEventListener('click', function () { go(s.id, null) })
+      plan.appendChild(d)
+    })
+    var tabs = $('tabs'); tabs.textContent = ''
+    Object.keys(DATA.floors).sort().reverse().forEach(function (k) {
+      var first = DATA.scenes.filter(function (s) { return String(s.floor) === k })[0]; if (!first) return
+      var t = document.createElement('button'); t.type = 'button'; t.textContent = DATA.floors[k]; t.setAttribute('aria-pressed', String(k === f))
+      t.addEventListener('click', function () { if (k !== f) go(first.id, null) })
+      tabs.appendChild(t)
+    })
+  }
+  function go(id, arriveYaw) {
+    var s = byId[id]; if (!s || busy || (cur && cur.id === id)) return
+    busy = true; veil.classList.add('on')
+    var wait = new Promise(function (ok) { setTimeout(ok, cur ? 300 : 0) })
+    Promise.all([tex('ai/' + id + '.jpg'), wait]).then(function (r) {
+      ai.material.map = r[0]; ai.material.opacity = 1; ai.material.needsUpdate = true
+      base.material.map = null; base.material.opacity = 0; base.material.needsUpdate = true
+      cur = s
+      yaw = arriveYaw == null ? yawOf(s.look[0], s.look[1]) : arriveYaw; pitch = -.04
+      $('roomName').textContent = s.name; $('floorName').textContent = DATA.floors[String(s.floor)]
+      buildSpots(); drawMap(); msg.textContent = ''
+      tex('base/' + id + '.jpg').then(function (t) { if (cur === s) { base.material.map = t; base.material.needsUpdate = true } }).catch(function () {})
+      s.links.forEach(function (l) { if (byId[l.to]) tex('ai/' + l.to + '.jpg').catch(function () {}) })   // the rooms next door, ready before they are asked for
+      veil.classList.remove('on'); busy = false
+    }).catch(function () { veil.classList.remove('on'); busy = false; if (!cur) msg.textContent = 'התמונה לא נטענה. נסו לרענן.' })
+  }
+
+  var pts = {}, last = null, pinch = 0
+  function first() { if (!touched) { touched = true; hint.classList.add('gone') } }
+  stage.addEventListener('pointerdown', function (e) { stage.setPointerCapture(e.pointerId); pts[e.pointerId] = [e.clientX, e.clientY]; last = [e.clientX, e.clientY]; pinch = 0; stage.classList.add('drag'); first() })
+  stage.addEventListener('pointermove', function (e) {
+    if (!pts[e.pointerId]) return
+    pts[e.pointerId] = [e.clientX, e.clientY]
+    var ids = Object.keys(pts)
+    if (ids.length >= 2) { var a = pts[ids[0]], b = pts[ids[1]], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) { fov = Math.max(38, Math.min(95, fov * pinch / d)); size() } pinch = d; return }
+    var k = cam.fov / 72 * .0042
+    yaw += (e.clientX - last[0]) * k; pitch = Math.max(-1.35, Math.min(1.35, pitch + (e.clientY - last[1]) * k)); last = [e.clientX, e.clientY]
+  })
+  function up(e) { delete pts[e.pointerId]; pinch = 0; var ids = Object.keys(pts); if (ids.length) last = pts[ids[0]].slice(); else stage.classList.remove('drag') }
+  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up)
+  stage.addEventListener('wheel', function (e) { e.preventDefault(); fov = Math.max(38, Math.min(95, fov + e.deltaY * .04)); size(); first() }, { passive: false })
+  window.addEventListener('keydown', function (e) { var s = .08; if (e.key === 'ArrowLeft') yaw += s; else if (e.key === 'ArrowRight') yaw -= s; else if (e.key === 'ArrowUp') pitch = Math.min(1.35, pitch + s); else if (e.key === 'ArrowDown') pitch = Math.max(-1.35, pitch - s); else return; first() })
+  var bAi = $('bAi'), bBase = $('bBase')
+  function show(which) { showBase = which === 'base' ? 1 : 0; bAi.setAttribute('aria-pressed', String(!showBase)); bBase.setAttribute('aria-pressed', String(!!showBase)) }
+  bAi.addEventListener('click', function () { show('ai') }); bBase.addEventListener('click', function () { show('base') })
+  var t0 = performance.now()
+  function frame(t) {
+    var dt = Math.min(.05, (t - t0) / 1000); t0 = t
+    var want = base.material.map ? showBase : 0, o = base.material.opacity
+    if (Math.abs(o - want) > .001) base.material.opacity = o + (want - o) * Math.min(1, dt * 6)
+    cam.rotation.set(pitch, yaw, 0); cam.updateMatrixWorld()
+    renderer.render(scene3, cam)
+    placeSpots()
+    requestAnimationFrame(frame)
+  }
+  go(byId[DATA.start] ? DATA.start : DATA.scenes[0].id, null)
+  requestAnimationFrame(frame)
+  window.__tour = { go: go, state: function () { return { id: cur && cur.id, yaw: yaw, links: cur ? cur.links.map(function (l) { return l.to }) : [] } } }
+})()
+</script>
