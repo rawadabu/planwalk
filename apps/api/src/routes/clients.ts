@@ -1,11 +1,11 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, isNull } from 'drizzle-orm'
 import { changeReport, parseDesign, type ChangeReport } from '@planwalk/design'
 import { parseHouse } from '@planwalk/house'
 import { db } from '../db/client.js'
-import { comment, design, feedback, house, member, organization, priceBook, project, projectInvite, projectMember, user } from '../db/schema.js'
+import { comment, design, feedback, house, houseSeen, member, organization, priceBook, project, projectInvite, projectMember, user } from '../db/schema.js'
 import { projectRole, requireProject, requireUser } from '../lib/guard.js'
 import { can } from '../lib/permissions.js'
 import { sendMail } from '../lib/mailer.js'
@@ -76,7 +76,10 @@ export async function clientRoutes(app: FastifyInstance) {
       await tx.insert(projectMember).values({ id: randomUUID(), projectId: i.projectId, userId: s.user.id, role: 'client' }).onConflictDoNothing()
       await tx.update(projectInvite).set({ acceptedAt: new Date() }).where(eq(projectInvite.id, i.id))
     })
-    const [h] = await db.select({ id: house.id }).from(house).where(eq(house.projectId, i.projectId)).limit(1)
+    const homes = await db.select({ id: house.id, version: house.version }).from(house).where(and(eq(house.projectId, i.projectId), isNull(house.draftOf), gt(house.version, 0)))
+    // what they walk into now is not "news"; only later versions are announced
+    for (const x of homes) await db.insert(houseSeen).values({ houseId: x.id, userId: s.user.id, version: x.version }).onConflictDoNothing()
+    const h = homes[0]
     return { projectId: i.projectId, houseId: h?.id ?? null }
   })
 
@@ -85,7 +88,7 @@ export async function clientRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string } }>('/api/houses/:id/feedback', async (req, reply) => {
     const s = await requireUser(req, reply); if (!s) return
     const [h] = await db.select().from(house).where(eq(house.id, req.params.id)).limit(1)
-    if (!h?.projectId) return reply.code(404).send({ error: 'not found' })
+    if (!h?.projectId || h.draftOf) return reply.code(404).send({ error: 'not found' })
     const [p] = await db.select().from(project).where(eq(project.id, h.projectId)).limit(1)
     const role = p ? await projectRole(s.user.id, p.id, p.organizationId) : null
     if (!p || !role) return reply.code(404).send({ error: 'not found' })

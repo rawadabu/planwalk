@@ -4,7 +4,7 @@ import { and, desc, eq, gt, isNull, or, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { parseHouse } from '@planwalk/house'
 import { db } from '../db/client.js'
-import { comment, house, member, priceBook, project, shareLink, projectMember } from '../db/schema.js'
+import { comment, house, houseSeen, houseVersion, member, priceBook, project, shareLink, projectMember, user } from '../db/schema.js'
 import { getSession, requireProject, roleIn, projectRole } from '../lib/guard.js'
 import { can } from '../lib/permissions.js'
 import { storage } from '../lib/storage.js'
@@ -39,10 +39,14 @@ async function access(req: FastifyRequest, houseId: string) {
   const token = (req.query as { share?: string }).share ?? (req.headers['x-share-token'] as string | undefined)
   const link = await validShare(token)
   const share = link && link.houseId === h.id ? link : null
+  // updated plans waiting for review are the studio's only; clients see a house once its plans were approved
+  if (h.draftOf) return role && role !== 'client' ? { house: h, session: s, role, share: null } : null
+  if (role === 'client' && h.version === 0) return null
   if (!role && !share && !h.public) return null
   return { house: h, session: s, role, share }
 }
 type Access = NonNullable<Awaited<ReturnType<typeof access>>>
+const seenVersion = async (houseId: string, userId: string) => (await db.select({ v: houseSeen.version }).from(houseSeen).where(and(eq(houseSeen.houseId, houseId), eq(houseSeen.userId, userId))).limit(1))[0]?.v ?? 0
 const canView = async (req: FastifyRequest, id: string) => (await access(req, id))?.house ?? null
 const mayComment = (a: Access) => (a.role ? can(a.role, 'comment', 'create') : a.share?.permission === 'comment')
 const mayResolve = (a: Access) => !!a.role && can(a.role, 'comment', 'resolve')
@@ -63,7 +67,7 @@ export async function houseRoutes(app: FastifyInstance) {
     const s = await getSession(req)
     const mine = s ? db.select({ id: project.id }).from(project).where(inArray(project.organizationId, db.select({ o: member.organizationId }).from(member).where(eq(member.userId, s.user.id)))) : null
     const rows = await db.select({ id: house.id, title: house.title, public: house.public, projectId: house.projectId }).from(house)
-      .where(mine ? or(eq(house.public, true), inArray(house.projectId, mine), inArray(house.projectId, db.select({ id: projectMember.projectId }).from(projectMember).where(eq(projectMember.userId, s!.user.id)))) : eq(house.public, true))
+      .where(mine ? and(isNull(house.draftOf), or(eq(house.public, true), inArray(house.projectId, mine), inArray(house.projectId, db.select({ id: projectMember.projectId }).from(projectMember).where(eq(projectMember.userId, s!.user.id))))) : eq(house.public, true))
     return rows
   })
 
@@ -108,9 +112,50 @@ export async function houseRoutes(app: FastifyInstance) {
     return {
       id: a.house.id, title: a.house.title, prices: pb?.data ?? null,
       location: p?.lat != null && p?.lng != null ? { address: p.address, lat: p.lat, lng: p.lng, north: p.northDeg ?? 0 } : null,
+      version: { number: a.house.version, unseen: a.role === 'client' && a.house.version > 1 && (await seenVersion(a.house.id, a.session!.user.id)) < a.house.version },
       viewer: { signedIn: !!a.session, name: a.session?.user.name ?? null, role: a.role, via: a.role ? 'member' : a.share ? 'share' : 'public' },
       can: { comment: mayComment(a), resolve: mayResolve(a) },
     }
+  })
+
+  // ── plan versions ──
+  // every published version: the architect's note, what changed, and what happened to the caller's own choices
+  app.get<{ Params: { id: string } }>('/api/houses/:id/versions', async (req, reply) => {
+    if (!ID.test(req.params.id)) return reply.code(400).send({ error: 'bad id' })
+    const a = await access(req, req.params.id); if (!a) return deny(reply)
+    const rows = await db.select({ number: houseVersion.number, note: houseVersion.note, changes: houseVersion.changes, carried: houseVersion.carried, createdAt: houseVersion.createdAt, by: user.name })
+      .from(houseVersion).leftJoin(user, eq(user.id, houseVersion.publishedBy)).where(eq(houseVersion.houseId, a.house.id)).orderBy(desc(houseVersion.number))
+    const me = a.session?.user.id, staff = !!a.role && a.role !== 'client'
+    reply.header('cache-control', 'private, no-store')
+    return {
+      current: a.house.version, seen: a.role && me ? await seenVersion(a.house.id, me) : a.house.version,
+      versions: rows.map(v => {
+        const carried = Object.entries((v.carried ?? {}) as Record<string, { by: string | null; dropped: Array<{ key: string; what: string }> }>)
+        return { number: v.number, note: v.note, changes: v.changes, createdAt: v.createdAt, by: v.by,
+          // clients see what happened to their own designs; the studio sees all of them
+          dropped: carried.filter(([, c]) => staff || (!!me && c.by === me)).flatMap(([, c]) => c.dropped.map(d => d.what)) }
+      }),
+    }
+  })
+
+  // an earlier version of the plan, for "before / after"
+  app.get<{ Params: { id: string; n: string } }>('/api/houses/:id/v/:n/house.json', async (req, reply) => {
+    const n = Number(req.params.n)
+    if (!ID.test(req.params.id) || !Number.isInteger(n) || n < 1 || n > 999) return reply.code(400).send({ error: 'bad path' })
+    const h = await canView(req, req.params.id); if (!h || h.draftOf || n > h.version) return deny(reply)
+    const key = `houses/${h.id}/v${n}/house.json`
+    if (!(await storage.exists(key))) return deny(reply)
+    reply.header('cache-control', 'private, max-age=600')
+    return parseHouse(JSON.parse((await storage.read(key)).toString()))
+  })
+
+  // "I have seen the update"
+  app.post<{ Params: { id: string } }>('/api/houses/:id/seen', async (req, reply) => {
+    if (!ID.test(req.params.id)) return reply.code(400).send({ error: 'bad id' })
+    const a = await access(req, req.params.id); if (!a || !a.session || !a.role) return deny(reply)
+    await db.insert(houseSeen).values({ houseId: a.house.id, userId: a.session.user.id, version: a.house.version })
+      .onConflictDoUpdate({ target: [houseSeen.houseId, houseSeen.userId], set: { version: a.house.version, seenAt: new Date() } })
+    return reply.code(204).send()
   })
 
   // ── comments pinned in the house ──

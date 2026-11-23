@@ -173,3 +173,26 @@ table select{padding:6px 8px;font-size:13px}
 .st-fb-sent{background:var(--accent);color:#fff}
 .st-fb-seen{background:#fbf0dc;color:#9a6312}
 .st-fb-done{background:var(--surface-2);color:var(--faint)}
+/* plan versions */
+.filebtn{position:relative;overflow:hidden;cursor:pointer}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.filebtn.busy{opacity:.6;pointer-events:none}
+.house > .ok,.house > .bad{margin:10px 0 0;font-size:13px}
+.update{border:1px solid var(--accent);border-radius:14px;background:var(--surface);padding:18px 20px;display:grid;gap:10px;margin:0 0 20px}
+.update.done{background:var(--accent-soft)}
+.update h2{font-size:18px;margin:0}
+.update h3{font-size:13px;margin:6px 0 0;color:var(--muted);font-weight:600}
+.update .lede{margin:0;color:var(--muted);font-size:14px}
+.update .chlist{margin:0;padding:0;list-style:none;display:grid;gap:4px;max-height:260px;overflow:auto}
+.update .chlist button{width:100%;text-align:start;font:inherit;font-size:14px;line-height:1.5;padding:7px 10px;border-radius:8px;border:1px solid transparent;background:var(--surface-2);color:var(--fg);cursor:pointer}
+.update .chlist button:hover,.update .chlist button.on{border-color:#e08a1e;background:#fdf3e2}
+.update .carry{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:14px}
+.update .carry ul{margin:4px 0 0;padding:0;list-style:none;display:grid;gap:3px;font-size:13px;color:var(--danger)}
+.update label{font-size:13px;color:var(--muted)}
+.update label small{color:var(--faint)}
+.update textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line-strong);border-radius:8px;padding:10px 12px;resize:vertical}
+.update .check{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--fg)}
+.update .actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.update .fine{font-size:13px;color:var(--muted)}
+.review .sheet .chg{fill:rgba(224,138,30,.12);stroke:#e08a1e;stroke-width:3;stroke-dasharray:10 6;cursor:pointer}
+.review .sheet .chg.on{fill:rgba(224,138,30,.3);stroke-width:5;stroke-dasharray:none}

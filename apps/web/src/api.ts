@@ -13,12 +13,19 @@ export interface ChangeReport { changes: Change[]; counts: Record<Change['kind']
 export interface Clients { members: Array<{ id: string; name: string; email: string; since: string }>; invites: Array<{ id: string; email: string; name: string | null; createdAt: string; expiresAt: string }> }
 export interface NewInvite { id: string; email: string; name: string | null; expiresAt: string; link: string }
 export interface Feedback { id: string; houseId: string; designId: string | null; designVersion: number | null; designName: string | null; author: string | null; message: string | null; report: ChangeReport; status: 'sent' | 'seen' | 'done'; createdAt: string }
+/** What changed between two versions of the plans (packages/design/src/versions.ts). */
+export interface PlanChange { kind: 'room' | 'opening' | 'wall'; storey: 0 | 1 | 2; where: string; what: string; rect: [number, number, number, number] }
+export interface PlanChanges { changes: PlanChange[]; counts: { room: number; opening: number; wall: number }; area: { before: number; after: number } }
+export interface UpdatePreview { target: { id: string; title: string; version: number }; number: number; changes: PlanChanges; clients: number
+  designs: Array<{ designId: string; name: string; author: string | null; kept: number; dropped: Array<{ key: string; what: string }> }> }
+export interface Published { houseId: string; number: number; changes: PlanChanges | null; notified: number; link: string }
+export interface Versions { current: number; seen: number; versions: Array<{ number: number; note: string | null; changes: PlanChanges | null; createdAt: string; by: string | null; dropped: string[] }> }
 export interface JoinInfo { project: string; studio: string; invitedBy: string | null; email: string; name: string | null }
 export interface ProjectRow { id: string; organizationId: string; name: string; kind: ProjectKind; address: string | null; createdAt: string; units: number; houses: number; asClient?: boolean }
 export interface Unit { id: string; number: string; buildingId: string | null; houseId: string | null; floor: number | null; rooms: number | null; areaM2: number | null; status: UnitStatus; priceIls: number | null }
-export interface HouseRow { id: string; title: string; public: boolean; projectId: string | null }
+export interface HouseRow { id: string; title: string; public: boolean; projectId: string | null; version?: number }
 export interface BuildReport { readings: 'api' | 'cache' | 'none'; scale: { ptPerCm: number; from: 'dimensions' | 'assumed'; dimensions: number; agree: number; written: number | null }; warnings: string[]; storeys: Array<{ storey: number; name: string; title: string | null; rooms: number; unsureRooms: number; openings: number; unsureOpenings: number; stairs: number }> }
-export interface Upload { id: string; projectId?: string; fileName: string; sizeBytes: number; status: string; createdAt: string; houseId?: string | null; error?: string | null; report?: BuildReport | null }
+export interface Upload { id: string; projectId?: string; fileName: string; sizeBytes: number; status: string; createdAt: string; houseId?: string | null; targetHouseId?: string | null; error?: string | null; report?: BuildReport | null; published?: Published }
 type Box = [number, number, number, number]
 /** plan@1 as the review screen needs it: what was understood from the sheet, per storey, in house px (≈ cm). */
 export interface PlanDoc {
@@ -39,6 +46,8 @@ export interface HouseMeta {
   /** the owning organisation's prices over the defaults (null = example prices) */
   prices?: Record<string, unknown> | null
   location: { address: string | null; lat: number; lng: number; north: number } | null
+  /** the published plan version, and whether this client has not looked at it yet */
+  version?: { number: number; unseen: boolean }
   viewer: { signedIn: boolean; name: string | null; role: string | null; via: 'member' | 'share' | 'public' }
   can: { comment: boolean; resolve: boolean }
 }
@@ -69,11 +78,15 @@ export const api = {
   project: (id: string) => req<ProjectDetail>(`/api/projects/${id}`),
   createUnit: (id: string, b: { number: string; buildingName?: string; floor?: number; rooms?: number; areaM2?: number; priceIls?: number; houseId?: string }) => req<Unit>(`/api/projects/${id}/units`, json('POST', b)),
   updateUnit: (id: string, b: { status?: UnitStatus; priceIls?: number | null }) => req<Unit>(`/api/units/${id}`, json('PATCH', b)),
-  uploadPlans: (id: string, file: File) => { const fd = new FormData(); fd.set('file', file); return req<Upload>(`/api/projects/${id}/uploads`, { method: 'POST', body: fd }) },
+  uploadPlans: (id: string, file: File, updates?: string) => { const fd = new FormData(); fd.set('file', file); return req<Upload>(`/api/projects/${id}/uploads${updates ? `?house=${encodeURIComponent(updates)}` : ''}`, { method: 'POST', body: fd }) },
   upload: (id: string) => req<Upload>(`/api/uploads/${id}`),
   uploadPlan: (id: string) => req<PlanDoc>(`/api/uploads/${id}/plan`),
   editPlan: (id: string, b: { rooms?: Array<{ storey: number; index: number; name: string }>; openings?: Array<{ storey: number; index: number; kind: 'window' | 'glass-door' }> }) => req<{ report: BuildReport }>(`/api/uploads/${id}/plan`, json('PATCH', b)),
-  publishUpload: (id: string) => req<Upload>(`/api/uploads/${id}/publish`, { method: 'POST' }),
+  publishUpload: (id: string, b: { note?: string; notify?: boolean } = {}) => req<Upload>(`/api/uploads/${id}/publish`, json('POST', b)),
+  uploadChanges: (id: string) => req<UpdatePreview>(`/api/uploads/${id}/changes`),
+  versions: (houseId: string, share?: string) => req<Versions>(`/api/houses/${houseId}/versions`, shareHdr(share)),
+  versionUrl: (houseId: string, n: number, share?: string) => `/api/houses/${houseId}/v/${n}/house.json${share ? `?share=${encodeURIComponent(share)}` : ''}`,
+  markSeen: (houseId: string) => req<void>(`/api/houses/${houseId}/seen`, { method: 'POST' }),
   rebuildUpload: (id: string) => req<{ ok: boolean }>(`/api/uploads/${id}/rebuild`, { method: 'POST' }),
   clients: (projectId: string) => req<Clients>(`/api/projects/${projectId}/clients`),
   inviteClient: (projectId: string, b: { email: string; name?: string }) => req<NewInvite>(`/api/projects/${projectId}/clients`, json('POST', b)),

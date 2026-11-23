@@ -9,6 +9,7 @@ import { AreasPanel } from '../viewer/Areas'
 import { GalleryPanel } from '../viewer/Gallery'
 import { DesignPanel, newDesignSession, renderDesign } from '../viewer/DesignPanel'
 import { SendPanel } from '../viewer/Send'
+import { VersionsPanel } from '../viewer/Versions'
 import { KitchenPanel } from '../viewer/KitchenPanel'
 import { CostPanel } from '../viewer/Cost'
 import { Tour } from '../viewer/Tour'
@@ -65,6 +66,11 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
     })().catch(() => { /* the base plan stays on screen */ })
     return () => { off = true }
   }, [viewer, base, meta, houseId, wanted, isClient])
+  // a new version of the plan is announced once, the first time the client comes back
+  const [mark, setMark] = useState<{ storey: number; rect: [number, number, number, number] } | null>(null)
+  const [unseen, setUnseen] = useState(false), announced = useRef(false)
+  useEffect(() => { setUnseen(!!meta?.version?.unseen) }, [meta])
+  useEffect(() => { if (viewer && base && meta?.version?.unseen && !announced.current) { announced.current = true; setDrawer('versions') } }, [viewer, base, meta])
   const myNotes = comments.list.filter(c => !c.parentId && !c.resolved && c.mine).length
 
   return (
@@ -81,7 +87,7 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
             <div className="row"><span className="rname">{ui.room?.[0] ?? ''}</span><span className="rdim">{ui.room?.[1] ?? ''}</span></div>
             <div className="note">מידות לפי התוכנית {ui.house.source.scale} · גובה תקרה {ui.house.storey.height.toFixed(2)}{ui.house.storey.assumed ? ' (הנחה)' : ''}</div>
           </div>
-          <MiniMap viewer={viewer} house={shown!} houseId={houseId} floor={ui.floor} room={ui.room} share={share} />
+          <MiniMap viewer={viewer} house={shown!} houseId={houseId} floor={ui.floor} room={ui.room} share={share} mark={mark} />
           {ui.nearStair && ui.mode === 'walk' && (
             <div className="panel stairs" role="group" aria-label="מדרגות">
               <span className="lbl2">מדרגות</span>
@@ -97,12 +103,13 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
           {drawer === 'styles' && <StylesBar viewer={viewer} house={ui.house} session={design.current} prices={meta?.prices} onHouse={setEdited} onClose={() => setDrawer(null)} onChanged={() => bump(n => n + 1)} />}
           {touring && <Tour viewer={viewer} house={shown!} onEnd={() => setTouring(false)} />}
           {drawer === 'cost' && <CostPanel house={ui.house} houseId={houseId} design={design.current.doc.design} prices={meta?.prices as never} onClose={() => setDrawer(null)} />}
+          {drawer === 'versions' && <VersionsPanel viewer={viewer} house={ui.house} houseId={houseId} share={share} session={design.current} isClient={isClient} onHouse={setEdited} onMark={setMark} onSeen={() => setUnseen(false)} onClose={() => setDrawer(null)} />}
           {drawer === 'send' && <SendPanel house={ui.house} houseId={houseId} session={design.current} prices={meta?.prices as never} notes={myNotes} onClose={() => setDrawer(null)} onSaved={() => bump(n => n + 1)} />}
           {drawer === 'areas' && <AreasPanel house={shown!} floor={ui.floor} onClose={() => setDrawer(null)} />}
           {drawer === 'photos' && <GalleryPanel houseId={houseId} share={share} onClose={() => setDrawer(null)} />}
           {drawer === 'sun' && meta && <SunPanel viewer={viewer} meta={meta} onClose={() => setDrawer(null)} />}
           {drawer === 'comments' && meta && <CommentsPanel viewer={viewer} house={ui.house} houseId={houseId} share={share} meta={meta} floor={ui.floor} state={comments} selected={selected} setSelected={setSelected} onClose={() => setDrawer(null)} />}
-          <Toolbar viewer={viewer} ui={ui} measuring={measuring} setMeasuring={setMeasuring} drawer={drawer} setDrawer={d => { setDrawer(d); setMoreOpen(false) }} commentCount={openCount} canSend={isClient} onTour={() => { setDrawer(null); setTouring(true); setMoreOpen(false) }} open={moreOpen} />
+          <Toolbar viewer={viewer} ui={ui} measuring={measuring} setMeasuring={setMeasuring} drawer={drawer} setDrawer={d => { setDrawer(d); setMoreOpen(false) }} commentCount={openCount} canSend={isClient} version={meta?.version?.number ?? 0} unseen={unseen} onTour={() => { setDrawer(null); setTouring(true); setMoreOpen(false) }} open={moreOpen} />
           <nav className="mbar" aria-label="פעולות עיקריות">
             <button onClick={() => { setDrawer(null); setTouring(true) }}><b>▶</b>סיור</button>
             <button aria-pressed={drawer === 'styles'} onClick={() => setDrawer(drawer === 'styles' ? null : 'styles')}><b>◐</b>סגנון</button>

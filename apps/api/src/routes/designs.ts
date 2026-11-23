@@ -17,7 +17,7 @@ async function houseRole(req: FastifyRequest, reply: FastifyReply, houseId: stri
   if (!h?.projectId) { reply.code(404).send({ error: 'not found' }); return null }
   const [p] = await db.select({ org: project.organizationId }).from(project).where(eq(project.id, h.projectId)).limit(1)
   const role = p ? await projectRole(s.user.id, h.projectId, p.org) : null
-  if (!role) { reply.code(404).send({ error: 'not found' }); return null }
+  if (!role || (role === 'client' && (h.draftOf || h.version === 0))) { reply.code(404).send({ error: 'not found' }); return null }
   return { session: s, house: h, role }
 }
 const deny = (reply: FastifyReply, role: string, action: string) => reply.code(403).send({ error: `Your role (${role}) can't ${action} designs` })

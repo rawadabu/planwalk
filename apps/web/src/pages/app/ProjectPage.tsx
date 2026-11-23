@@ -32,7 +32,7 @@ export default function ProjectPage() {
       <section>
         <h2>3D models</h2>
         {p.houses.length === 0 ? <p className="empty">No 3D model yet. Upload the plans below; the model appears here when processing finishes.</p> : (
-          <div className="houses">{p.houses.map(h => <HouseCard key={h.id} house={h} canShare={can('share')} />)}</div>
+          <div className="houses">{p.houses.map(h => <HouseCard key={h.id} house={h} canShare={can('share')} canUpdate={can('upload')} projectId={p.id} onChange={load} />)}</div>
         )}
       </section>
 
@@ -63,10 +63,10 @@ export default function ProjectPage() {
         {p.uploads.length === 0 ? <p className="empty">No plans uploaded yet.</p> : (
           <ul className="rows">{p.uploads.map(u => (
             <li key={u.id}>
-              <span><b>{u.fileName}</b><small>{(u.sizeBytes / 1e6).toFixed(1)} MB · {new Date(u.createdAt).toLocaleDateString()}{u.status === 'failed' && u.error ? ` · ${u.error}` : ''}</small></span>
+              <span><b>{u.fileName}</b><small>{u.targetHouseId ? `Update of ${p.houses.find(h => h.id === u.targetHouseId)?.title ?? 'a house'} · ` : ''}{(u.sizeBytes / 1e6).toFixed(1)} MB · {new Date(u.createdAt).toLocaleDateString()}{u.status === 'failed' && u.error ? ` · ${u.error}` : ''}</small></span>
               <span className="uprow">
                 <em className={`st st-${u.status}`}>{STATUS_LABEL[u.status] ?? u.status}</em>
-                {(u.status === 'review' || u.status === 'ready') && can('upload') && <Link className="btn sm" to={`/app/review/${u.id}`}>{u.status === 'review' ? 'Review' : 'Review again'}</Link>}
+                {(u.status === 'review' || u.status === 'ready') && can('upload') && <Link className={'btn sm' + (u.status === 'review' ? ' primary' : '')} to={`/app/review/${u.id}`}>{u.status === 'review' ? (u.targetHouseId ? 'Review and publish' : 'Review') : 'Open review'}</Link>}
                 {u.status === 'failed' && can('upload') && <button className="btn sm" onClick={() => api.rebuildUpload(u.id).then(load).catch(e => setError(e.message))}>Try again</button>}
               </span>
             </li>
@@ -163,7 +163,14 @@ function FeedbackList({ projectId }: { projectId: string }) {
   )
 }
 
-function HouseCard({ house, canShare }: { house: HouseRow; canShare: boolean }) {
+function HouseCard({ house, canShare, canUpdate, projectId, onChange }: { house: HouseRow; canShare: boolean; canUpdate: boolean; projectId: string; onChange: () => void }) {
+  const [upBusy, setUpBusy] = useState(false), [upMsg, setUpMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const update = async (file?: File) => {
+    if (!file) return
+    setUpBusy(true); setUpMsg(null)
+    try { await api.uploadPlans(projectId, file, house.id); setUpMsg({ ok: true, text: `${file.name} uploaded. It is being built as the next version; review it under Plans. Clients keep seeing the current version until you publish.` }); onChange() }
+    catch (e) { setUpMsg({ ok: false, text: (e as Error).message }) } finally { setUpBusy(false) }
+  }
   const [open, setOpen] = useState(false), [shares, setShares] = useState<ShareRow[]>([]), [created, setCreated] = useState<NewShare | null>(null)
   const [days, setDays] = useState('30'), [label, setLabel] = useState(''), [copied, setCopied] = useState(false), [error, setError] = useState<string | null>(null)
   const load = () => api.shares(house.id).then(setShares).catch(e => setError(e.message))
@@ -178,10 +185,12 @@ function HouseCard({ house, canShare }: { house: HouseRow; canShare: boolean }) 
   return (
     <div className="house">
       <div className="house-head">
-        <span><b>{house.title}</b><small>{house.public ? 'Public demo' : 'Private · members and share links only'}</small></span>
+        <span><b>{house.title}</b><small>{house.version ? `Version ${house.version} · ` : 'Not approved yet · '}{house.public ? 'Public demo' : 'Private · members, clients and share links only'}</small></span>
         <Link className="btn sm primary" to={`/h/${house.id}`}>Open walkthrough</Link>
+        {canUpdate && !!house.version && <label className={'btn sm filebtn' + (upBusy ? ' busy' : '')}>{upBusy ? 'Uploading…' : 'Upload updated plans'}<input type="file" accept="application/pdf" disabled={upBusy} onChange={e => { update(e.target.files?.[0]); e.target.value = '' }} /></label>}
         {canShare && <button className="btn sm" aria-expanded={open} onClick={() => setOpen(!open)}>Share</button>}
       </div>
+      {upMsg && <p className={upMsg.ok ? 'ok' : 'bad'} role="status">{upMsg.text}</p>}
       {open && (
         <div className="share">
           <form onSubmit={create}>

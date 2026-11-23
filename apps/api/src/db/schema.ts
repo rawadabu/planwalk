@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer, real, doublePrecision, pgEnum, index, uniqueIndex, jsonb } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, integer, real, doublePrecision, pgEnum, index, uniqueIndex, jsonb, primaryKey } from 'drizzle-orm/pg-core'
 
 // ───────────────────────── Better Auth (core + organization plugin) ─────────────────────────
 // Field names must match Better Auth's expectations (checked against better-auth 1.7 getAuthTables).
@@ -106,6 +106,8 @@ export const house = pgTable('house', {
   projectId: text('project_id').references(() => project.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   public: boolean('public').notNull().default(false),
+  version: integer('version').notNull().default(0),      // the published plan version clients see (0 = not published yet)
+  draftOf: text('draft_of'),                             // set while this is updated plans of another house, waiting for review
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('house_project_idx').on(t.projectId)])
 
@@ -131,6 +133,7 @@ export const planUpload = pgTable('plan_upload', {
   sizeBytes: integer('size_bytes').notNull(),
   status: uploadStatus('status').notNull().default('uploaded'),
   houseId: text('house_id').references(() => house.id, { onDelete: 'set null' }),     // the model built from these plans
+  targetHouseId: text('target_house_id').references(() => house.id, { onDelete: 'set null' }),   // these plans update an existing house
   error: text('error'),                                                              // why the build failed
   report: jsonb('report'),                                                           // what the pipeline understood (scale, storeys, warnings)
   createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
@@ -237,3 +240,24 @@ export const feedback = pgTable('feedback', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   seenAt: timestamp('seen_at', { withTimezone: true }),
 }, t => [index('feedback_project_idx').on(t.projectId)])
+
+/** Every published version of a house's plans: what changed against the one before, and how each saved design travelled. */
+export const houseVersion = pgTable('house_version', {
+  id: text('id').primaryKey(),
+  houseId: text('house_id').notNull().references(() => house.id, { onDelete: 'cascade' }),
+  number: integer('number').notNull(),
+  uploadId: text('upload_id').references(() => planUpload.id, { onDelete: 'set null' }),
+  note: text('note'),                                    // the architect's words to the client
+  changes: jsonb('changes'),                             // PlanChanges against the previous version (null for the first)
+  carried: jsonb('carried'),                             // { [designId]: { by, dropped[] } }
+  publishedBy: text('published_by').references(() => user.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex('house_version_unique').on(t.houseId, t.number)])
+
+/** The newest version each person has looked at, so an update is announced once. */
+export const houseSeen = pgTable('house_seen', {
+  houseId: text('house_id').notNull().references(() => house.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  seenAt: timestamp('seen_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.houseId, t.userId] })])

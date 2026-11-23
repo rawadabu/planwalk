@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { and, desc, eq, inArray, or, sql } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { db } from '../db/client.js'
 import { building, house, member, planUpload, project, projectMember, unit } from '../db/schema.js'
@@ -59,13 +59,13 @@ export async function projectRoutes(app: FastifyInstance) {
     const ctx = await requireProject(req, reply, req.params.id, 'project', 'read'); if (!ctx) return
     // a client sees their home, not the studio's working files
     if (ctx.role === 'client') {
-      const houses = await db.select().from(house).where(eq(house.projectId, ctx.project.id))
+      const houses = await db.select().from(house).where(and(eq(house.projectId, ctx.project.id), isNull(house.draftOf), gt(house.version, 0)))
       return { id: ctx.project.id, organizationId: ctx.project.organizationId, name: ctx.project.name, kind: ctx.project.kind, address: ctx.project.address, createdAt: ctx.project.createdAt, lat: ctx.project.lat, lng: ctx.project.lng, northDeg: ctx.project.northDeg, role: ctx.role, buildings: [], units: [], houses, uploads: [] }
     }
     const [buildings, units, houses, uploads] = await Promise.all([
       db.select().from(building).where(eq(building.projectId, ctx.project.id)).orderBy(building.sort),
       db.select().from(unit).where(eq(unit.projectId, ctx.project.id)).orderBy(unit.number),
-      db.select().from(house).where(eq(house.projectId, ctx.project.id)),
+      db.select().from(house).where(and(eq(house.projectId, ctx.project.id), isNull(house.draftOf))),
       db.select().from(planUpload).where(eq(planUpload.projectId, ctx.project.id)).orderBy(desc(planUpload.createdAt)),
     ])
     return { ...ctx.project, role: ctx.role, buildings, units, houses, uploads }
@@ -137,10 +137,18 @@ export async function projectRoutes(app: FastifyInstance) {
     const buf = await part.toBuffer()
     if (part.file.truncated) return reply.code(413).send({ error: 'The file is larger than 50 MB' })
     if (buf.subarray(0, 5).toString() !== '%PDF-') return reply.code(400).send({ error: 'Upload the plans as a PDF file' })
+    // ?house=<id>: these are updated plans of a house this project already has
+    const targetId = (req.query as { house?: string }).house
+    let target: string | null = null
+    if (targetId) {
+      const [t] = await db.select().from(house).where(and(eq(house.id, targetId), eq(house.projectId, ctx.project.id))).limit(1)
+      if (!t || t.draftOf) return reply.code(404).send({ error: 'The house to update was not found in this project' })
+      target = t.id
+    }
     const id = randomUUID()
     const key = `projects/${ctx.project.id}/${id}.pdf`
     await storage.write(key, buf)
-    const [row] = await db.insert(planUpload).values({ id, projectId: ctx.project.id, fileKey: key, fileName: part.filename.replace(/[^\w.\- ]/g, '_').slice(0, 120), sizeBytes: buf.length, createdBy: ctx.session.user.id }).returning()
+    const [row] = await db.insert(planUpload).values({ id, projectId: ctx.project.id, fileKey: key, fileName: part.filename.replace(/[^\w.\- ]/g, '_').slice(0, 120), sizeBytes: buf.length, targetHouseId: target, createdBy: ctx.session.user.id }).returning()
     void buildUpload(row.id)                                 // build in the background; the page polls /api/uploads/:id
     return reply.code(201).send(row)
   })

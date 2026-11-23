@@ -4,7 +4,7 @@ import type { House, RoomTuple, StoreyId } from '@planwalk/house'
 import { api } from '../api'
 
 // The architect's plan for the current storey, rooms highlighted, live position + view cone. Click to move there.
-export function MiniMap({ viewer, house, houseId, floor, room, share }: { viewer: Viewer; house: House; houseId: string; floor: StoreyId; room: RoomTuple | null; share?: string }) {
+export function MiniMap({ viewer, house, houseId, floor, room, share, mark }: { viewer: Viewer; house: House; houseId: string; floor: StoreyId; room: RoomTuple | null; share?: string; /** a place to point at (a change in the plan) */ mark?: { storey: number; rect: [number, number, number, number] } | null }) {
   const svgRef = useRef<SVGSVGElement>(null), meRef = useRef<SVGGElement>(null), coneRef = useRef<SVGGElement>(null)
   const fl = house.floors[floor]
   useEffect(() => {
@@ -35,6 +35,7 @@ export function MiniMap({ viewer, house, houseId, floor, room, share }: { viewer
               </g>
             )
           })}
+          {mark && mark.storey === floor && <rect className="mark" x={mark.rect[0] - 14} y={mark.rect[1] - 14} width={mark.rect[2] - mark.rect[0] + 28} height={mark.rect[3] - mark.rect[1] + 28} rx={10} />}
           <g ref={meRef}>
             <g ref={coneRef}><path d="M0 0 L-58 -100 A116 116 0 0 1 58 -100 Z" fill="rgba(229,72,59,.28)" /></g>
             <circle r={13} fill="#e5483b" stroke="#fff" strokeWidth={5} />

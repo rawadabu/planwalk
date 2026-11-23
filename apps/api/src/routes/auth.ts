@@ -3,7 +3,7 @@ import { auth } from '../lib/auth.js'
 import { getSession } from '../lib/guard.js'
 import { db } from '../db/client.js'
 import { house, member, organization, project, projectMember } from '../db/schema.js'
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNull } from 'drizzle-orm'
 
 // Better Auth handles /api/auth/* (sign-up, sign-in, sessions, organizations, invitations).
 export async function authRoutes(app: FastifyInstance) {
@@ -43,6 +43,6 @@ async function clientHomes(userId: string) {
   const rows = await db.select({ projectId: project.id, name: project.name, address: project.address, studio: organization.name })
     .from(projectMember).innerJoin(project, eq(project.id, projectMember.projectId)).innerJoin(organization, eq(organization.id, project.organizationId)).where(eq(projectMember.userId, userId))
   if (!rows.length) return []
-  const houses = await db.select({ id: house.id, projectId: house.projectId, title: house.title }).from(house).where(inArray(house.projectId, rows.map(r => r.projectId)))
+  const houses = await db.select({ id: house.id, projectId: house.projectId, title: house.title }).from(house).where(and(inArray(house.projectId, rows.map(r => r.projectId)), isNull(house.draftOf), gt(house.version, 0)))
   return rows.map(r => ({ ...r, houses: houses.filter(h => h.projectId === r.projectId).map(h => ({ id: h.id, title: h.title })) }))
 }
