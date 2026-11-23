@@ -29,7 +29,7 @@ export default class Player {
     this.stairs = house.stairs
     // the visit starts on the storey with the entrance
     const entry = house.entry ?? 1
-    this.experience.state.floor = entry
+    if (entry !== this.experience.state.floor) this.experience.setFloor(entry)      // through the event: the world shows that storey's interior
     const s = this.floors[entry].start
     Object.assign(this.p, { x: s.x, y: s.y }); this.look.yaw = s.yaw
     this.ready = true
