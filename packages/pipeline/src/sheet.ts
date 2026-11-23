@@ -34,7 +34,7 @@ export interface PlanRoom {
 }
 export interface PlanOpening { kind: 'door' | 'window' | 'glass-door'; rect: Box; axis: 'h' | 'v'; sill: number; head: number; hinge?: Pt; swing?: Pt; sure: boolean }
 export interface PlanNote { text: string; at: Pt; box: Box; kind: 'fixture' | 'room' | 'note' }
-export interface PlanStorey { storey: number; name: string; title: string | null; drawing: number; side: 'left' | 'right' | 'whole'; place: Place; match: number; bounds: Box; walls: Poly[]; openings: PlanOpening[]; rooms: PlanRoom[]; notes: PlanNote[]; stairs: Stair[]; railings: Box[]; strokes: Stroke[] }
+export interface PlanStorey { storey: number; name: string; title: string | null; drawing: number; side: 'left' | 'right' | 'whole'; place: Place; match: number; /** x of the party wall when this is one unit of a twin house */ party: number | null; bounds: Box; walls: Poly[]; openings: PlanOpening[]; rooms: PlanRoom[]; notes: PlanNote[]; stairs: Stair[]; railings: Box[]; strokes: Stroke[] }
 export interface Plan {
   format: 'plan@1'
   scale: { ptPerCm: number; pxPerPt: number; from: 'dimensions' | 'assumed'; dimensions: number; agree: number; written: number | null }
@@ -130,7 +130,7 @@ export function understand(L: PdfLayers, read: Map<number, Read>, opts: Options 
     }
     const r = analyse(walls, ops.map(o => place(o, pl)), strokes, labels.map(l => ({ text: l.text!, kind: read.get(l.id)!.kind, box: placeBox(pl, l.box), size: Math.min(l.box[2] - l.box[0], l.box[3] - l.box[1]) * Math.abs(pl.sx) })))
     const [x1, y1, x2, y2] = bbox(walls)
-    storeys.push({ storey, name: STOREY_NAMES[storey] ?? `קומה ${storey}`, title: title || null, drawing: di, side: P.side, place: pl, match: +P.match.toFixed(3), bounds: [Math.round(x1 - 30), Math.round(y1 - 30), Math.round(x2 + 30), Math.round(y2 + 30)], walls, rooms: r.rooms, openings: r.openings, notes: r.notes, stairs: r.stairs, railings: r.railings, strokes })
+    storeys.push({ storey, name: STOREY_NAMES[storey] ?? `קומה ${storey}`, title: title || null, drawing: di, side: P.side, place: pl, match: +P.match.toFixed(3), party: P.axis === null ? null : Math.round(placePt(pl, [P.axis, 0])[0]), bounds: [Math.round(x1 - 30), Math.round(y1 - 30), Math.round(x2 + 30), Math.round(y2 + 30)], walls, rooms: r.rooms, openings: r.openings, notes: r.notes, stairs: r.stairs, railings: r.railings, strokes })
   }
   // a living room named again on the storey above it is the opening over it (double height), not a second living room
   for (const up of storeys) {

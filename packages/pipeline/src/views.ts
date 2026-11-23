@@ -5,7 +5,7 @@ import { PX_PER_M, type Plan } from './sheet'
  * Where a photographer would stand in each room: as far back as the room allows, clear of walls and furniture, with a
  * free line of sight to the middle of the room. One view per indoor room; positions are house px (per storey).
  */
-export interface RoomView { id: string; name: string; storey: number; pos: [number, number]; target: [number, number]; area: number; wide: boolean }
+export interface RoomView { id: string; name: string; storey: number; pos: [number, number]; target: [number, number]; area: number; wide: boolean; /** camera and target heights above the storey floor (m), when not eye level */ heights?: [number, number] }
 
 const STEP = 30, CLEAR = 38                  // px: candidate spacing, clearance from walls
 
@@ -43,11 +43,36 @@ export function roomViews(plan: Plan, house: House): RoomView[] {
       out.push({ id: `f${st.storey}-${out.length}`, name: room.name, storey: st.storey, pos: [Math.round(best.p[0]), Math.round(best.p[1])], target: [Math.round(target[0]), Math.round(target[1])], area: room.area, wide: room.area < 9 })
     }
   }
+  // from the balconies and terraces of the upper storeys: stand by the door and look out over the neighbourhood
+  for (const st of plan.storeys) {
+    if (st.storey < 1) continue
+    const [bx1, by1, bx2, by2] = st.bounds, cx = (bx1 + bx2) / 2, cy = (by1 + by2) / 2
+    for (const room of st.rooms) {
+      if (!room.outdoor || !room.at || room.area < 6) continue
+      // outwards = away from the middle of the house, along the stronger axis
+      const dx = room.at[0] - cx, dy = room.at[1] - cy, ax = Math.abs(dx) * (by2 - by1) > Math.abs(dy) * (bx2 - bx1)
+      const dir: [number, number] = ax ? [Math.sign(dx), 0] : [0, Math.sign(dy)]
+      out.push({ id: `f${st.storey}-${out.length}`, name: `נוף מה${room.name}`, storey: st.storey, pos: [Math.round(room.at[0] - dir[0] * 60), Math.round(room.at[1] - dir[1] * 60)], target: [Math.round(room.at[0] + dir[0] * 1500), Math.round(room.at[1] + dir[1] * 1500)], area: room.area, wide: false, heights: [1.6, .4] })
+    }
+  }
+  // from outside: the street front and the garden side, from above head height like a drone
+  const site = house.site
+  if (site) {
+    const all = plan.storeys.map(s => s.bounds)
+    let x1 = Math.min(...all.map(b => b[0])), y1 = Math.min(...all.map(b => b[1])), x2 = Math.max(...all.map(b => b[2])), y2 = Math.max(...all.map(b => b[3]))
+    if (site.twin) { x1 = Math.min(x1, 2 * site.twin.at - x2); x2 = Math.max(x2, 2 * site.twin.at - all.reduce((m, b) => Math.min(m, b[0]), Infinity)) }
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, far = 1500, ground = Math.min(...plan.storeys.map(s => s.storey))
+    const alongX = site.street[0] === 'y', sgn = site.street[1] === '-' ? -1 : 1
+    const front: [number, number] = alongX ? [mx - (x2 - x1) * .45, (sgn < 0 ? y1 : y2) + sgn * far] : [(sgn < 0 ? x1 : x2) + sgn * far, my - (y2 - y1) * .45]
+    const back: [number, number] = alongX ? [mx + (x2 - x1) * .5, (sgn < 0 ? y2 : y1) - sgn * far] : [(sgn < 0 ? x2 : x1) - sgn * far, my + (y2 - y1) * .5]
+    out.push({ id: `x-${out.length}`, name: 'חזית הרחוב', storey: ground, pos: [Math.round(front[0]), Math.round(front[1])], target: [Math.round(mx), Math.round(my)], area: 0, wide: false, heights: [7.5, 4.2] })
+    out.push({ id: `x-${out.length}`, name: 'חזית הגינה', storey: ground, pos: [Math.round(back[0]), Math.round(back[1])], target: [Math.round(mx), Math.round(my)], area: 0, wide: false, heights: [6, 4.2] })
+  }
   return out
 }
 
 /** A view in the engine's world space (metres, y up): camera at eye height, looking slightly down at the target. */
 export function toWorld(v: RoomView, level: Record<number, number> = { 0: -3.05, 1: 0, 2: 3.05 }) {
   const k = 1 / PX_PER_M, y = level[v.storey] ?? 0
-  return { id: v.id, name: v.name, storey: v.storey, wide: v.wide, pos: [v.pos[0] * k, y + 1.6, v.pos[1] * k], target: [v.target[0] * k, y + 1.15, v.target[1] * k] }
+  return { id: v.id, name: v.name, storey: v.storey, wide: v.wide, pos: [v.pos[0] * k, y + (v.heights?.[0] ?? 1.6), v.pos[1] * k], target: [v.target[0] * k, y + (v.heights?.[1] ?? 1.15), v.target[1] * k], outside: v.area === 0 || !!v.heights }
 }

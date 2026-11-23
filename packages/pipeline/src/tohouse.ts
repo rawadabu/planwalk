@@ -55,12 +55,24 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
     // under the lowest stair there is floor
     if (here && s === Math.min(...plan.storeys.map(p => p.storey))) items.push({ k: 'box', f: s, layer: 'arch', r: here.box.map(Math.round) as Box4, y: [-.02, 0], m: 'floor' })
   }
+  // the plot: the street is on the side of the entrance / parking; a twin house has its other unit across the party wall
+  const ground = plan.storeys.find(p => p.storey === 0) ?? plan.storeys[0]
+  const cx = (ground.bounds[0] + ground.bounds[2]) / 2, cy = (ground.bounds[1] + ground.bounds[3]) / 2
+  const entry = ground.rooms.find(r => r.outdoor && r.at && /כניסה|חניה|חנייה/.test(r.name))
+  let street: 'x+' | 'x-' | 'y+' | 'y-' = 'y-'
+  if (entry?.at) { const dx = entry.at[0] - cx, dy = entry.at[1] - cy; street = Math.abs(dy) >= Math.abs(dx) * .6 ? (dy < 0 ? 'y-' : 'y+') : (dx < 0 ? 'x-' : 'x+') }
+  else warnings.push('the street side is a guess (no entrance or parking is named on the ground floor)')
+  const parties = plan.storeys.map(p => p.party).filter((v): v is number => v !== null).sort((a, b) => a - b)
+  const party = parties.length ? parties[Math.floor(parties.length / 2)] : null
+  const site: House['site'] = { street, ...(party !== null ? { twin: { side: cx < party ? 'x+' as const : 'x-' as const, at: party } } : {}) }
+  if (site.twin && street[0] === 'x') site.street = 'y-'                 // a twin's street runs across both units
+
   if (plan.storeys.some(s => s.storey < 0 || s.storey > 2)) warnings.push('storeys outside ground…second are not built yet')
   const house: House = {
     format: 'house@1', id: opts.id ?? 'auto', title: opts.title ?? 'בית מתוכנית',
     source: { file: opts.file ?? 'plan.pdf', scale: plan.scale.written ? `1:${plan.scale.written}` : '1:100', pxPerMetre: PX_PER_M, note: `pipeline v2 · scale from ${plan.scale.agree} dimensions` },
     storey: { height: H, slab: .25, assumed: true }, floors: floors as House['floors'], void: [],
-    stairs: { step: .175, path: {}, exit: {}, trigger: {}, zone: {}, arrive: {} }, canopies: [], items,
+    stairs: { step: .175, path: {}, exit: {}, trigger: {}, zone: {}, arrive: {} }, canopies: [], site, items,
   }
   return { house, maps, warnings }
 }

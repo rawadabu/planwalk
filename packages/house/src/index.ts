@@ -66,6 +66,12 @@ export const House = z.object({
     arrive: z.record(z.string(), z.object({ x: z.number(), y: z.number(), yaw: z.number() })),
   }),
   canopies: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])),
+  // the plot: which side the street is on, and — for a twin house — where the party wall is and on which side the
+  // other unit stands. The viewer builds the surroundings (the twin, street, neighbours, trees) from it.
+  site: z.object({
+    street: z.enum(['x+', 'x-', 'y+', 'y-']),
+    twin: z.object({ side: z.enum(['x+', 'x-']), at: z.number() }).optional(),
+  }).optional(),
   items: z.array(Item),
 })
 

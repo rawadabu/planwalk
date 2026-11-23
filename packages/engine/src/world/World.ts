@@ -12,6 +12,8 @@ import Environment from './components/Environment'
 // Builds the house described by house.json once Resources are ready, and owns per-storey visibility:
 //   arch[f] = structure of storey f (always visible while walking, so the house looks whole from outside)
 //   int[f]  = interior of storey f (only the active storey and the one you can see through the void are drawn)
+import Neighbourhood from './components/Neighbourhood'
+
 export default class World {
   [key: string]: any
   constructor() {
@@ -35,6 +37,7 @@ export default class World {
     this.batcher = new StaticBatcher(this.materials, this.groups)
     this.architecture = new Architecture(this)
     this.kit = new Kit(this)
+    this.neighbourhood = new Neighbourhood(this)
     this.batcher.flush()
     this.fireplace = new Fireplace(this, this.kit.firePoints, this.materials)
     this.roomSkins = new RoomSkins(this)
@@ -57,6 +60,7 @@ export default class World {
     if (exp.story?.built) { exp.story.dispose(); exp.story.built = false }
     this.architecture = new Architecture(this)
     this.kit = new Kit(this)
+    this.neighbourhood = new Neighbourhood(this)
     this.batcher.flush()
     this.fireplace = new Fireplace(this, this.kit.firePoints, this.materials)
     this.roomSkins = new RoomSkins(this)

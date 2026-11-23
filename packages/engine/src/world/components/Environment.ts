@@ -32,7 +32,8 @@ export default class Environment {
     this.pmrem = new THREE.PMREMGenerator(renderer)
     this.envMap = this.pmrem.fromScene(new RoomEnvironment(), .04).texture
     scene.environment = this.envMap
-    scene.background = resources.items.sky || new THREE.Color(0xcfe0ec)
+    // a house with its own surroundings (street, neighbours) gets a plain sky; the demo keeps its garden panorama
+    scene.background = world.house.site ? skyGradient() : (resources.items.sky || new THREE.Color(0xcfe0ec))
     scene.backgroundRotation.set(0, Math.PI * .5, 0)
 
     this.center = new THREE.Vector3(X(575), 0, Z(780))
@@ -179,4 +180,14 @@ export default class Environment {
     this.canopyGeo.dispose(); this.leafMat.dispose(); this.envMap.dispose(); this.probes?.forEach(p => p?.dispose()); this.cubeRT?.dispose(); this.pmrem.dispose()
     scene.environment = null; scene.background = null
   }
+}
+
+/** A clear sky as an equirectangular texture: deep blue overhead, pale haze at the horizon, soft green below it. */
+function skyGradient() {
+  const c = document.createElement('canvas'); c.width = 16; c.height = 512
+  const g = c.getContext('2d')!, grad = g.createLinearGradient(0, 0, 0, 512)
+  grad.addColorStop(0, '#5e9bd6'); grad.addColorStop(.32, '#9cc4e8'); grad.addColorStop(.49, '#dfeaf2'); grad.addColorStop(.505, '#cfd9c4'); grad.addColorStop(.56, '#9fb07e'); grad.addColorStop(1, '#8aa068')
+  g.fillStyle = grad; g.fillRect(0, 0, 16, 512)
+  const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace
+  return t
 }

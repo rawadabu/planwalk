@@ -73,6 +73,10 @@ export default class Materials {
       deck: std({ color: 0xc9bca9, roughness: .8 }),
       paver: std({ color: 0xb7aea1, roughness: .9 }),
       grass: std({ color: 0x8aa863, roughness: 1 }),
+      asphalt: std({ color: 0x3d3f43, roughness: .95 }),
+      plasterWarm: std({ color: 0xe3d4bd, roughness: .95 }),
+      plasterGrey: std({ color: 0xcfcbc4, roughness: .95 }),
+      leaf: std({ color: 0x4d6b38, roughness: .9 }),
       // glass: 'simple' is a cheap transparent pane; 'physical' uses transmission (one extra scene render per frame)
       glassSimple: new THREE.MeshPhysicalMaterial({ color: 0xdfeef6, transparent: true, opacity: .14, roughness: .03, metalness: 0, envMapIntensity: 1.2, depthWrite: false }),
       glassPhysical: new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, roughness: .02, thickness: .01, ior: 1.5 }),

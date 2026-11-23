@@ -34,16 +34,7 @@ print('objects', len(scene.objects), 'glass objects', glass, 'materials', len(bp
 gm = bpy.data.materials.new('lawn'); gm.use_nodes = True
 gb = next(n for n in gm.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'); gb.inputs['Base Color'].default_value = (0.06, 0.11, 0.035, 1); gb.inputs['Roughness'].default_value = 1
 lo = min((o.matrix_world @ Vector(c)).z for o in scene.objects if o.type == 'MESH' for c in o.bound_box)
-bpy.ops.mesh.primitive_plane_add(size=600, location=(5, -8, min(lo, -3.05) - 0.01)); bpy.context.object.data.materials.append(gm)
-
-# a hedge around the plot hides the horizon
-hm = bpy.data.materials.new('hedge'); hm.use_nodes = True
-hb = next(n for n in hm.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'); hb.inputs['Base Color'].default_value = (0.035, 0.075, 0.03, 1); hb.inputs['Roughness'].default_value = 1
-xs = [(o.matrix_world @ Vector(c)) for o in scene.objects if o.type == 'MESH' and o.name != 'Plane' for c in o.bound_box]
-x1, x2, y1, y2 = min(v.x for v in xs) - 9, max(v.x for v in xs) + 9, min(v.y for v in xs) - 9, max(v.y for v in xs) + 9
-base = min(lo, -3.05)
-for cx, cy, sx, sy in (((x1 + x2) / 2, y1, x2 - x1, .8), ((x1 + x2) / 2, y2, x2 - x1, .8), (x1, (y1 + y2) / 2, .8, y2 - y1), (x2, (y1 + y2) / 2, .8, y2 - y1)):
-    bpy.ops.mesh.primitive_cube_add(size=1, location=(cx, cy, base + 1.3)); h = bpy.context.object; h.scale = (sx, sy, 2.6); h.data.materials.append(hm)
+bpy.ops.mesh.primitive_plane_add(size=1500, location=(5, -8, min(lo, -3.05) - 0.02)); bpy.context.object.data.materials.append(gm)
 
 # daylight: physical sky with a sun
 world = bpy.data.worlds.new('sky'); scene.world = world; world.use_nodes = True
@@ -84,7 +75,7 @@ for v in json.load(open(views_path)):
         cam_data.type = 'PANO'; cam_data.panorama_type = 'EQUIRECTANGULAR'
         scene.render.resolution_x = int(width * 1.6); scene.render.resolution_y = int(width * .8)
     else:
-        cam_data.type = 'PERSP'; cam_data.lens = 15 if v.get('wide') else 19; cam_data.sensor_width = 36
+        cam_data.type = 'PERSP'; cam_data.lens = 15 if v.get('wide') else 26 if v.get('outside') else 19; cam_data.sensor_width = 36
         scene.render.resolution_x = width; scene.render.resolution_y = int(width * 2 / 3)
     scene.render.filepath = os.path.join(out, 'render_' + key + '.jpg')
     t = time.time(); bpy.ops.render.render(write_still=True); print('rendered', key, round(time.time() - t), 's', flush=True)

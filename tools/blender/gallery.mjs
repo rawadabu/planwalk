@@ -33,11 +33,14 @@ writeFileSync(glb, Buffer.from(b64, 'base64'))
 console.log(`exported ${(Buffer.byteLength(b64, 'base64') / 1e6).toFixed(1)} MB`)
 
 // 2. render every view
-const views = JSON.parse(readFileSync(viewsPath, 'utf8'))
+const only = process.env.PLANWALK_ONLY?.split(',')                   // a few view ids, for a quick look
+const views = JSON.parse(readFileSync(viewsPath, 'utf8')).filter(v => !only || only.includes(v.id))
+const out = process.env.PLANWALK_OUT ?? dir
+const list = path.join(path.dirname(glb), 'views.json'); writeFileSync(list, JSON.stringify(views))
 const done = []
-const save = () => writeFileSync(path.join(dir, 'renders.json'), JSON.stringify(done, null, 1))
+const save = () => writeFileSync(path.join(out, 'renders.json'), JSON.stringify(done, null, 1))
 await new Promise((resolve, reject) => {
-  const py = spawn(process.env.PLANWALK_PYTHON ?? 'python3', [path.join(here, 'render.py'), glb, viewsPath, dir, samples, width], { stdio: ['ignore', 'pipe', 'inherit'] })
+  const py = spawn(process.env.PLANWALK_PYTHON ?? 'python3', [path.join(here, 'render.py'), glb, list, out, samples, width], { stdio: ['ignore', 'pipe', 'inherit'] })
   let buf = ''
   py.stdout.on('data', d => {
     buf += d
@@ -50,4 +53,4 @@ await new Promise((resolve, reject) => {
   })
   py.on('exit', code => (code === 0 ? resolve() : reject(new Error(`render.py exited ${code}`))))
 })
-console.log(`gallery: ${done.length} images in ${dir}`)
+console.log(`gallery: ${done.length} images in ${out}`)
