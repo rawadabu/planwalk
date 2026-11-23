@@ -1,5 +1,6 @@
 import type { House } from '@planwalk/house'
 import { applyRun, checkRun, type Run } from './kitchen'
+import { applyFurniture, type AddEdit, type ItemEdit } from './furnish'
 
 /**
  * Geometry edits (sheet A-04b). A design never touches the architect's base: these edits are applied to a copy,
@@ -11,7 +12,7 @@ import { applyRun, checkRun, type Run } from './kitchen'
 export type WindowType = 'sliding' | 'hinged' | 'fixed'
 export interface WindowEdit { k: 'window'; floor: 0 | 1 | 2; index: number; width?: number; sill?: number; head?: number; type?: WindowType }
 export interface WallEdit { k: 'wall'; floor: 0 | 1 | 2; axis: 'x' | 'y'; a: number; b: number; lo: number; hi: number; by: number }
-export type Edit = WindowEdit | WallEdit | Run
+export type Edit = WindowEdit | WallEdit | Run | ItemEdit | AddEdit
 export interface EditIssue { key: string; level: 'error' | 'warning'; message: string }
 
 export const PX_PER_CM = 437 / 440            // plan px per cm (437 px = 440 cm on the twin-house plan)
@@ -19,7 +20,7 @@ const H = 2.8, TOL = 1.6
 export const MIN_WINDOW_CM = 40, MAX_MOVE_CM = 150, MIN_ROOM_CM = 120
 
 /** Stable key per edited element: one edit per window, one per partition. */
-export const editKey = (e: Edit) => e.k === 'window' ? `window:f${e.floor}.${e.index}` : e.k === 'run' ? `run:f${e.floor}.${e.id}` : `wall:f${e.floor}.${e.axis}${Math.round(e.a)}.${Math.round(e.lo)}`
+export const editKey = (e: Edit) => e.k === 'window' ? `window:f${e.floor}.${e.index}` : e.k === 'run' ? `run:f${e.floor}.${e.id}` : e.k === 'item' ? `item:f${e.floor}.${e.ref}` : e.k === 'add' ? `add:f${e.floor}.${e.id}` : `wall:f${e.floor}.${e.axis}${Math.round(e.a)}.${Math.round(e.lo)}`
 
 /** A window as the UI shows it (cm and m), from a house. */
 export function windowInfo(house: House, floor: 0 | 1 | 2, index: number) {
@@ -60,12 +61,14 @@ export function findPartition(house: House, floor: 0 | 1 | 2, axis: 'x' | 'y', a
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
 /** Apply edits to a copy of the base. Errors mean the edit was skipped; warnings are applied but flagged. */
-export function applyEdits(base: House, edits: Record<string, Edit>): { house: House; issues: EditIssue[]; windowTypes: Record<string, WindowType> } {
+export function applyEdits(base: House, edits: Record<string, Edit>): { house: House; issues: EditIssue[]; windowTypes: Record<string, WindowType>; /** per item of `house.items`: the edit key that moves it (null = fixed) */ itemKeys: Array<string | null> } {
   const house = clone(base), issues: EditIssue[] = [], windowTypes: Record<string, WindowType> = {}
   // walls first (they can carry windows with them), then windows
-  const order = { wall: 0, window: 1, run: 2 }
+  const order = { wall: 0, window: 1, run: 2, item: 3, add: 3 }
   const list = Object.entries(edits).sort(([, p], [, q]) => order[p.k] - order[q.k])
+  const furniture: Array<[string, ItemEdit | AddEdit]> = []
   for (const [key, e] of list) {
+    if (e.k === 'item' || e.k === 'add') { furniture.push([key, e]); continue }
     const err = (message: string) => issues.push({ key, level: 'error', message })
     const fl = house.floors[e.floor]
     if (!fl) { err('Unknown storey'); continue }
@@ -141,5 +144,8 @@ export function applyEdits(base: House, edits: Record<string, Edit>): { house: H
     const hit = house.items.some(it => it.f === e.floor && 'r' in it && it.k === 'model' && it.r[ax] < band[1] && it.r[2 + ax] > band[0] && it.r[ox] < e.hi && it.r[2 + ox] > e.lo)
     if (hit) issues.push({ key, level: 'warning', message: 'Furniture stands where the wall now is; move it in the room' })
   }
-  return { house, issues, windowTypes }
+  // furniture last: pieces keep their names from the plan (their place before anything moved)
+  const f = applyFurniture(house, furniture, PX_PER_CM)
+  issues.push(...f.issues)
+  return { house, issues, windowTypes, itemKeys: f.keys }
 }

@@ -8,7 +8,7 @@ export type UnitStatus = 'available' | 'reserved' | 'sold'
 export interface ClientHome { projectId: string; name: string; address: string | null; studio: string; houses: Array<{ id: string; title: string }> }
 export interface Me { user: { id: string; name: string; email: string }; activeOrganizationId: string | null; organizations: Array<{ id: string; name: string; slug: string; role: string; kind: string }>; clientOf: ClientHome[] }
 /** What a client changed against the architect's plan (packages/design/src/report.ts). */
-export interface Change { kind: 'finish' | 'window' | 'wall' | 'kitchen'; storey: number | null; where: string; what: string; issue?: string }
+export interface Change { kind: 'finish' | 'window' | 'wall' | 'kitchen' | 'furniture'; storey: number | null; where: string; what: string; issue?: string }
 export interface ChangeReport { changes: Change[]; counts: Record<Change['kind'], number>; cost: { base: number; total: number; difference: number }; note: string | null; comments?: number }
 export interface Clients { members: Array<{ id: string; name: string; email: string; since: string }>; invites: Array<{ id: string; email: string; name: string | null; createdAt: string; expiresAt: string }> }
 export interface NewInvite { id: string; email: string; name: string | null; expiresAt: string; link: string }

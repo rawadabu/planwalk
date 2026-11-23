@@ -14,12 +14,17 @@ const FROM_LABEL = { base: 'בסיס', all: 'כל הבית', floor: 'הקומה'
  * Team members save to the server; everyone else (and the static demo) can try it out locally.
  */
 /** What design mode keeps while the page is open (the panel can close and reopen). */
-export interface DesignSession { doc: DesignDoc; active: { id: string; name: string; version: number } | null; shownEdits: string }
-export const newDesignSession = (): DesignSession => ({ doc: new DesignDoc(emptyDesign()), active: null, shownEdits: '{}' })
+export interface DesignSession { doc: DesignDoc; active: { id: string; name: string; version: number } | null; shownEdits: string; /** the walls / windows / kitchen part of what is drawn ('' = draw everything again) */ shownGeo: string }
+export const newDesignSession = (): DesignSession => ({ doc: new DesignDoc(emptyDesign()), active: null, shownEdits: '{}', shownGeo: '[]' })
 /** Draw a design: rebuild the house when its geometry edits changed, then apply finishes. Shared by the design and kitchen panels. */
 export function renderDesign(viewer: Viewer, base: House, session: DesignSession, onHouse: (h: House) => void, d: Design) {
-  const key = JSON.stringify(d.edits)
-  if (key !== session.shownEdits) { session.shownEdits = key; const eff = applyEdits(base, d.edits).house; viewer.setHouse(eff); onHouse(eff) }
+  const key = JSON.stringify(d.edits), geo = JSON.stringify(Object.entries(d.edits).filter(([, e]) => e.k !== 'item' && e.k !== 'add'))
+  if (key !== session.shownEdits) {
+    const eff = applyEdits(base, d.edits).house
+    // moving a chair does not rebuild the walls: only the furniture is redrawn
+    if (session.shownEdits !== '' && geo === session.shownGeo) viewer.setFurniture(eff); else viewer.setHouse(eff)
+    session.shownEdits = key; session.shownGeo = geo; onHouse(eff)
+  }
   viewer.applyDesign(storeyLooks(d), roomLooks(d))
 }
 

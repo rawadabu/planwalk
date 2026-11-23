@@ -37,6 +37,8 @@ export interface SurfaceHit {
   /** a wall was clicked: the face's axis ('x' = a face of constant x) and plan coordinate */
   face?: { axis: 'x' | 'y'; at: number }
 }
+/** A piece of furniture in the house: its index in house.items, storey, 3D model name, footprint (plan px) and facing. */
+export interface ItemHit { index: number; floor: StoreyId; name: string; rect: [number, number, number, number]; rot: number; outdoor: boolean }
 export interface MeasureReading { cm: number; screen: { x: number; y: number }; visible: boolean }
 
 /** Events the viewer emits. The UI subscribes with viewer.on(name, handler). */
@@ -57,6 +59,10 @@ export interface ViewerEvents {
   frame: (dt: number) => void
   /** A click/tap on the canvas that wasn't a drag */
   tap: (p: { clientX: number; clientY: number }) => void
+  /** Arranging: a piece was selected (pressed), or the selection was cleared */
+  item: (hit: ItemHit | null) => void
+  /** Arranging: a piece was dragged and dropped; dx, dy in plan px. The app answers with setFurniture / setHouse. */
+  itemMoved: (m: { index: number; dx: number; dy: number }) => void
   /** Sun moved (custom time): azimuth from true north and elevation, degrees */
   sun: (s: { az: number; el: number }) => void
 }
@@ -79,6 +85,16 @@ export interface Viewer {
   pickSurface(clientX: number, clientY: number): SurfaceHit | null
   /** Rebuild walls and windows from an edited copy of the house (the base model stays loaded). */
   setHouse(house: House): void
+  /** Redraw only the furniture from an edited copy of the house (same walls). */
+  setFurniture(house: House): void
+  /** Arranging on: press a piece to select it, drag to move it. `fixed` = model names that stay put (plumbing). */
+  setArranging(on: boolean, fixed?: string[]): void
+  /** Select (outline) a piece by its index in the current house.items; null clears */
+  selectItem(index: number | null): void
+  /** Look down on a plan point of a storey (top view, orbit around it): for arranging a garden or a room from above */
+  viewFromAbove(floor: StoreyId, x: number, y: number): void
+  /** Is this 3D model available in this viewer (some are loaded only for houses with surroundings)? */
+  hasModel(name: string): boolean
   /** Highlight a room surface while it is being edited; null clears */
   highlight(sel: { part: DesignPart; floor: StoreyId; room: number | null } | null): void
   /** The surface point under a screen position, or null */

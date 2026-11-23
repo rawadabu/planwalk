@@ -20,12 +20,15 @@ export const EditSchema = z.discriminatedUnion('k', [
   z.object({ k: z.literal('run'), floor: Storey, id: z.string().max(20), x: z.number(), y: z.number(), axis: z.enum(['x', 'y']), length: z.number().positive().max(2000), depth: z.number().min(30).max(80),
     facing: z.union([z.literal(1), z.literal(-1)]), uppers: z.boolean().default(false),
     modules: z.array(z.object({ t: z.enum(['drawers', 'doors', 'sink', 'hob', 'dishwasher', 'corner', 'fridge', 'oven', 'pantry', 'filler']), w: z.number().positive().max(200) })).max(40) }),
+  // furniture: a piece of the plan moved / turned (quarter turns) / removed, or a new piece from the catalogue
+  z.object({ k: z.literal('item'), floor: Storey, ref: z.string().regex(/^[\w.-]{1,38}$/), dx: z.number().min(-6000).max(6000), dy: z.number().min(-6000).max(6000), turn: z.number().int().min(0).max(3).optional(), remove: z.boolean().optional() }),
+  z.object({ k: z.literal('add'), floor: Storey, id: z.string().regex(/^[\w-]{1,20}$/), thing: z.string().max(30), x: z.number().min(-9000).max(12000), y: z.number().min(-9000).max(12000), turn: z.number().int().min(0).max(3), out: z.boolean().optional() }),
 ])
 export const Design = z.object({
   format: z.literal('design@1'),
   finishes: z.record(z.string().regex(TARGET, 'Unknown target'), z.string().min(1).max(64)).default({}),
-  /** geometry edits keyed by editKey(): window:f1.3, wall:f2.x545.703 */
-  edits: z.record(z.string().regex(/^(window|wall|run):f[0-2]\.[\w.-]{1,40}$/), EditSchema).default({}),
+  /** edits keyed by editKey(): window:f1.3, wall:f2.x545.703, item:f1.sofa-412-380, add:f0.k3x9 */
+  edits: z.record(z.string().regex(/^(window|wall|run|item|add):f[0-2]\.[\w.-]{1,40}$/).max(60), EditSchema).refine(e => Object.keys(e).length <= 600, 'Too many edits').default({}),
   note: z.string().max(2000).optional(),
 })
 export type Design = z.infer<typeof Design>

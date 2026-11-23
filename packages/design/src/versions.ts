@@ -1,6 +1,7 @@
 import type { House } from '@planwalk/house'
 import { parseTarget, targetKey, type Design } from './schema'
 import { applyEdits, editKey, findPartition, PX_PER_CM, type Edit } from './edits'
+import { itemRef, pieceName } from './furnish'
 
 /**
  * Plan versions. When the architect publishes updated plans, two things must happen without a meeting:
@@ -203,6 +204,14 @@ export function carryDesign(prev: House, next: House, design: Design): Carried {
       const p = findPartition(next, e.floor, e.axis, e.a, (e.lo + e.hi) / 2)
       if (p.ok && Math.abs(p.wall.a - e.a) < 4 && Math.abs(p.wall.b - e.b) < 4) { const n = { ...e, a: p.wall.a, b: p.wall.b, lo: p.wall.lo, hi: p.wall.hi }; edits[editKey(n)] = n }
       else dropped.push({ key, what: `הקיר שהזזתם ב${STOREY[e.floor]}: הקיר השתנה בתוכנית החדשה` })
+    } else if (e.k === 'item') {
+      // the same piece in the new plan: same model, standing (almost) where it stood
+      const [name, sx, sy] = [e.ref.replace(/-(-?\d+)-(-?\d+)$/, ''), ...(/-(-?\d+)-(-?\d+)$/.exec(e.ref)?.slice(1).map(Number) ?? [NaN, NaN])] as [string, number, number]
+      const cands = next.items.filter(i => i.k === 'model' && i.f === e.floor && i.name === name).map(i => { const m = i as Extract<typeof i, { k: 'model' }>; return { m, d: Math.hypot((m.r[0] + m.r[2]) / 2 - sx, (m.r[1] + m.r[3]) / 2 - sy) } }).sort((p, q) => p.d - q.d)
+      if (cands[0] && cands[0].d < 45) { const n = { ...e, ref: itemRef(cands[0].m) }; edits[editKey(n)] = n }
+      else dropped.push({ key, what: `${pieceName(name)} ב${STOREY[e.floor]}: הרהיט כבר לא נמצא שם בתוכנית החדשה` })
+    } else if (e.k === 'add') {
+      edits[key] = e                                                     // what the client brought in stays where they put it
     } else {
       const len = e.length * PX_PER_CM, x = e.axis === 'x' ? e.x + len / 2 : e.x, y = e.axis === 'x' ? e.y : e.y + len / 2
       const was = roomAt(prev, e.floor, x, y, true), now = [0, 25, -25].flatMap(d => [roomAt(next, e.floor, x + d, y, true), roomAt(next, e.floor, x, y + d, true)]).find(Boolean)
@@ -213,7 +222,7 @@ export function carryDesign(prev: House, next: House, design: Design): Carried {
   // whatever the new plan refuses outright does not travel either
   for (const i of applyEdits(next, edits).issues) if (i.level === 'error' && edits[i.key]) {
     const e = edits[i.key]; delete edits[i.key]
-    dropped.push({ key: i.key, what: `${e.k === 'window' ? 'שינוי החלון' : e.k === 'wall' ? 'הקיר שהזזתם' : 'המטבח שתכננתם'} ב${STOREY[e.floor]}: לא מתאים לתוכנית החדשה` })
+    dropped.push({ key: i.key, what: `${e.k === 'window' ? 'שינוי החלון' : e.k === 'wall' ? 'הקיר שהזזתם' : e.k === 'run' ? 'המטבח שתכננתם' : 'רהיט שהזזתם'} ב${STOREY[e.floor]}: לא מתאים לתוכנית החדשה` })
   }
   return { design: { ...design, finishes, edits: edits as Design['edits'] }, kept: Object.keys(finishes).length + Object.keys(edits).length, dropped }
 }

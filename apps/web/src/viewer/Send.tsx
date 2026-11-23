@@ -5,7 +5,7 @@ import { api } from '../api'
 import { ils } from './Cost'
 import type { DesignSession } from './DesignPanel'
 
-const KINDS = [['wall', 'קירות'], ['window', 'חלונות'], ['kitchen', 'מטבח'], ['finish', 'חומרים וצבעים']] as const
+const KINDS = [['wall', 'קירות'], ['window', 'חלונות'], ['kitchen', 'מטבח'], ['furniture', 'ריהוט וגינה'], ['finish', 'חומרים וצבעים']] as const
 
 /**
  * "Send to the architect": everything the client changed against the plan, as one list with the price difference,

@@ -50,7 +50,7 @@ export function VersionsPanel({ viewer, house, houseId, share, session, isClient
   const prev = useRef(new Map<number, House>())
   useEffect(() => { api.versions(houseId, share).then(d => { setData(d); setN(d.current) }).catch(e => setError(e.message)) }, [houseId, share])
 
-  const showAfter = () => { session.shownEdits = ''; renderDesign(viewer, house, session, onHouse, session.doc.design) }
+  const showAfter = () => { session.shownEdits = ''; session.shownGeo = ''; renderDesign(viewer, house, session, onHouse, session.doc.design) }
   const show = async (which: 'after' | 'before') => {
     if (which === side || !n) return
     if (which === 'after') { showAfter(); setSide('after'); return }

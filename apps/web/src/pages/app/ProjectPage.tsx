@@ -124,7 +124,7 @@ function ClientsBox({ projectId, hasModel }: { projectId: string; hasModel: bool
 }
 
 // What clients sent back: every change against your plan, in their words, with the price difference.
-const KIND_LABEL: Record<string, string> = { wall: 'Walls', window: 'Windows', kitchen: 'Kitchen', finish: 'Finishes' }
+const KIND_LABEL: Record<string, string> = { wall: 'Walls', window: 'Windows', kitchen: 'Kitchen', furniture: 'Furniture and garden', finish: 'Finishes' }
 function FeedbackList({ projectId }: { projectId: string }) {
   const [rows, setRows] = useState<Feedback[] | null>(null), [error, setError] = useState<string | null>(null)
   const load = () => api.feedback(projectId).then(setRows).catch(e => setError(e.message))
@@ -144,7 +144,7 @@ function FeedbackList({ projectId }: { projectId: string }) {
           </header>
           {f.message && <blockquote dir="auto">{f.message}</blockquote>}
           {r.changes.length === 0 ? <p className="empty">No changes to the plan{r.comments ? '; see the notes in the walkthrough.' : '.'}</p> : (
-            (['wall', 'window', 'kitchen', 'finish'] as const).filter(k => r.counts[k]).map(k => (
+            (['wall', 'window', 'kitchen', 'furniture', 'finish'] as const).filter(k => r.counts[k]).map(k => (
               <div key={k} className="fbgroup">
                 <h3>{KIND_LABEL[k]} <small>{r.counts[k]}</small></h3>
                 <ul dir="rtl">{r.changes.filter(c => c.kind === k).map((c, i) => <li key={i}><b>{c.where}</b> {c.what}{c.issue ? <small className="bad"> · {c.issue}</small> : null}</li>)}</ul>

@@ -10,6 +10,7 @@ import { GalleryPanel } from '../viewer/Gallery'
 import { DesignPanel, newDesignSession, renderDesign } from '../viewer/DesignPanel'
 import { SendPanel } from '../viewer/Send'
 import { VersionsPanel } from '../viewer/Versions'
+import { FurnishPanel } from '../viewer/Furnish'
 import { KitchenPanel } from '../viewer/KitchenPanel'
 import { CostPanel } from '../viewer/Cost'
 import { Tour } from '../viewer/Tour'
@@ -45,7 +46,7 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
   useEffect(() => {
     if (!viewer) return
     return viewer.on('tap', e => {
-      if (measuring || touring || drawer === 'design' || drawer === 'comments' || ui.mode !== 'walk') return
+      if (measuring || touring || drawer === 'design' || drawer === 'furnish' || drawer === 'comments' || ui.mode !== 'walk') return
       const h = viewer.pick(e.clientX, e.clientY)
       if (h && h.h < .15 && h.floor === ui.floor) viewer.teleport(h.x, h.y)
     })
@@ -100,6 +101,7 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
           <CommentPins viewer={viewer} comments={comments.list} floor={ui.floor} mode={ui.mode} selected={selected} onSelect={c => { setSelected(c.id); setDrawer('comments') }} />
           {drawer === 'design' && meta && <DesignPanel viewer={viewer} house={ui.house} houseId={houseId} meta={meta} floor={ui.floor} onClose={() => setDrawer(null)} onHouse={setEdited} session={design.current} onCost={() => setDrawer('cost')} />}
           {drawer === 'kitchen' && <KitchenPanel viewer={viewer} house={ui.house} houseId={houseId} prices={meta?.prices} session={design.current} onHouse={setEdited} onClose={() => setDrawer(null)} onCost={() => setDrawer('cost')} />}
+          {drawer === 'furnish' && <FurnishPanel viewer={viewer} house={ui.house} floor={ui.floor} session={design.current} onHouse={setEdited} onClose={() => setDrawer(null)} onChanged={() => bump(n => n + 1)} />}
           {drawer === 'styles' && <StylesBar viewer={viewer} house={ui.house} session={design.current} prices={meta?.prices} onHouse={setEdited} onClose={() => setDrawer(null)} onChanged={() => bump(n => n + 1)} />}
           {touring && <Tour viewer={viewer} house={shown!} onEnd={() => setTouring(false)} />}
           {drawer === 'cost' && <CostPanel house={ui.house} houseId={houseId} design={design.current.doc.design} prices={meta?.prices as never} onClose={() => setDrawer(null)} />}

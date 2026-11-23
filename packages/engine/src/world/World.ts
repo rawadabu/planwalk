@@ -7,6 +7,7 @@ import Kit from './components/Kit'
 import Fireplace from './components/Fireplace'
 import RoomSkins from './components/RoomSkins'
 import Furniture from './components/Furniture'
+import { registerGarden } from './components/Garden'
 import Environment from './components/Environment'
 
 // Builds the house described by house.json once Resources are ready, and owns per-storey visibility:
@@ -41,6 +42,7 @@ export default class World {
     this.batcher.flush()
     this.fireplace = new Fireplace(this, this.kit.firePoints, this.materials)
     this.roomSkins = new RoomSkins(this)
+    registerGarden(res.items, this.materials.list)     // built-in garden pieces, placed like any other model
     this.furniture = new Furniture(this, res)
     this.environment = new Environment(this, res, exp.renderer.instance, this.kit)
     // static content: no per-frame matrix work
@@ -64,13 +66,23 @@ export default class World {
     this.batcher.flush()
     this.fireplace = new Fireplace(this, this.kit.firePoints, this.materials)
     this.roomSkins = new RoomSkins(this)
+    this.furniture.dispose(); this.furniture = new Furniture(this, exp.resources)
     this.environment.kit = this.kit
-    for (const g of [...this.groups.arch, ...this.groups.int, this.groups.roof]) g.traverse(o => { if (o.isMesh && o.matrixAutoUpdate) { o.updateMatrix(); o.matrixAutoUpdate = false } })
+    for (const g of [...this.groups.arch, ...this.groups.int, this.groups.outdoor, this.groups.roof]) g.traverse(o => { if (o.isMesh && o.matrixAutoUpdate) { o.updateMatrix(); o.matrixAutoUpdate = false } })
     this.applyQuality(exp.renderer.preset)
     this.updateVisibility()
     exp.player.useHouse(house)
     exp.renderer.requestShadowUpdate()
     this.environment.requestProbes()
+  }
+
+  /** Only the furniture changed (a piece moved, was added or removed): redraw it and nothing else. */
+  setFurniture(house) {
+    const exp = this.experience
+    this.house = house
+    this.furniture.dispose(); this.furniture = new Furniture(this, exp.resources)
+    for (const m of this.furniture.meshes) { m.updateMatrix(); m.matrixAutoUpdate = false; m.updateMatrixWorld(true) }
+    exp.renderer.requestShadowUpdate(); exp.renderer.renderRequested = true
   }
 
   inRoom(f, x, y) {

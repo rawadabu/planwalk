@@ -81,6 +81,20 @@ export function createViewer(options: ViewerOptions): Viewer {
       return out
     },
     setHouse: house => { if (exp.world.ready) exp.world.rebuild(house); else exp.on('worldReady', () => exp.world.rebuild(house)) },
+    setFurniture: house => { if (exp.world.ready) exp.world.setFurniture(house); else exp.on('worldReady', () => exp.world.setFurniture(house)) },
+    setArranging: (on, fixed) => exp.arrange.setActive(on, fixed),
+    selectItem: index => { const it = index == null ? null : exp.world.house?.items[index]; exp.arrange.select(it && it.k === 'model' ? it : null) },
+    hasModel: name => !!exp.resources.items[name],
+    viewFromAbove: (floor, x, y) => {
+      const cam = exp.camera, start = exp.world.house?.floors[floor].start
+      cam.orbit.enabled = false
+      if (exp.state.mode !== 'top') exp.setMode('top')
+      if (exp.state.floor !== floor) { exp.setFloor(floor); if (start) Object.assign(exp.player.p, { x: start.x, y: start.y, vx: 0, vy: 0 }) }
+      const t = new THREE.Vector3(X(x), LEVEL[floor], Z(y)), pos = t.clone().add(new THREE.Vector3(0, 12, 6.5))
+      const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(pos, t, THREE.Object3D.DEFAULT_UP))
+      cam.orbit.target.copy(t)
+      cam.tweenTo({ pos, q }, 1.1, () => { cam.orbit.enabled = true })
+    },
     highlight: sel => { exp.world.roomSkins?.highlight(sel); exp.renderer.renderRequested = true },
     pick: (cx, cy) => {
       const cam = exp.camera.instance, r = exp.canvas.getBoundingClientRect()
