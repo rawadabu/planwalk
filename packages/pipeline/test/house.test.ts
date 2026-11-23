@@ -30,6 +30,13 @@ test('the twin house: doors, names, sizes and a stair you can walk', { skip: !pd
   // one bathtub, a fireplace, wardrobes
   assert.equal(house.items.filter(i => i.k === 'model' && i.name === 'bathtub').length, 1)
   assert.ok(house.items.some(i => i.k === 'box' && i.m === 'flame' && i.f === 1))
+  const flame = house.items.find(i => i.k === 'box' && i.m === 'flame')!
+  assert.ok(flame.k === 'box' && !house.items.some(i => i.k === 'model' && i.f === 1 && i.r[0] < flame.r[2] + 60 && i.r[2] > flame.r[0] - 60 && i.r[1] < flame.r[3] + 60 && i.r[3] > flame.r[1] - 60), 'nothing stands on the hearth')
+  // doors have leaves; the front door is a metal one; the ground storey has a stone base and the roof a parapet
+  assert.equal(house.items.filter(i => i.k === 'box' && i.layer === 'int' && i.y[0] === .01 && (i.m === 'oak' || i.m === 'metal')).length, house.items.filter(i => i.k === 'opening').length)
+  assert.ok(house.items.some(i => i.k === 'box' && i.f === 0 && i.m === 'metal' && i.y[0] === .01))
+  assert.ok(house.items.filter(i => i.k === 'box' && i.f === 0 && i.m === 'cladding').length > 50)
+  assert.ok(house.items.filter(i => i.k === 'box' && i.layer === 'roof' && i.y[0] > 3).length > 8)
   assert.ok(house.items.filter(i => i.k === 'tall').length >= 4)
   // stairs: a path over every tread between each pair of storeys, ending on real floor one storey up
   for (const base of [0, 1] as const) {
@@ -39,6 +46,11 @@ test('the twin house: doors, names, sizes and a stair you can walk', { skip: !pd
     const [ex, ey] = house.stairs.exit[base], up = st(base + 1)
     assert.ok(up.rooms.some(r => !r.outdoor && !r.void && r.tiles.some(t => ex > t[0] && ex < t[2] && ey > t[1] && ey < t[3])), 'the top of the stair is on a floor')
     assert.ok(house.stairs.trigger[base] && house.stairs.down![base + 1])
+    // the floor in front of the first step, and at the top, is free to stand on (a 28 cm body against the blocked rectangles)
+    const free = (f: 0 | 1 | 2, x: number, y: number) => !house.floors[f].rects.some(r => { const cx = Math.max(r[0], Math.min(x, r[2])), cy = Math.max(r[1], Math.min(y, r[3])); return (x - cx) ** 2 + (y - cy) ** 2 < 28 * 28 })
+    const T = house.stairs.trigger[base], D = house.stairs.down![base + 1]
+    for (const t of [0, 40, 80]) { assert.ok(free(base, T[0] - T[3]![0] * t, T[1] - T[3]![1] * t), `approach to the stair on storey ${base}`); assert.ok(free((base + 1) as 1 | 2, D[0] - D[3]![0] * t, D[1] - D[3]![1] * t), `approach to the way down on storey ${base + 1}`) }
+    assert.ok(!free(base, T[0] + T[3]![0] * 60, T[1] + T[3]![1] * 60), 'the steps themselves are solid')
   }
   // windows, railings and the double-height space stop a walker
   assert.ok(house.floors[2].rects.length > 5)

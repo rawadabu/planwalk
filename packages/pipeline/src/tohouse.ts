@@ -15,6 +15,7 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
   const floors = {} as Record<StoreyId, Floor>, maps: Record<string, string> = {}, items: Item[] = []
   const flights: Array<{ base: StoreyId; treads: Box4[]; rise: number; box: Box4 }> = []
   const top = Math.max(...plan.storeys.map(s => s.storey))
+  const bottom = Math.min(...plan.storeys.map(s => s.storey))
   for (const s of [0, 1, 2] as StoreyId[]) {
     const st = plan.storeys.find(p => p.storey === s)
     if (!st) { floors[s] = { name: `קומה ${s}`, bounds: [0, 0, 100, 100], map: '', start: { x: 50, y: 50, yaw: 0 }, walls: [], glass: [], rooms: [], indoor: 0, rects: [] }; warnings.push(`the sheet has no storey ${s}`); continue }
@@ -47,8 +48,52 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
     const holes = [...st.rooms.filter(r => r.void).flatMap(r => r.tiles), ...st.stairs.map(x => x.box)]
     if (s > 0) for (const t of plate(indoor.flatMap(r => r.tiles), holes)) items.push({ k: 'box', f: s, layer: 'arch', r: t, y: [-.25, -.02], m: 'ceil' })
     // the roof covers the whole top storey: rooms, walls, the double-height space and the stairwell
-    if (s === top) for (const t of plate([...indoor.flatMap(r => r.tiles), ...holes], [])) items.push({ k: 'box', f: s, layer: 'roof', r: [t[0] - 12, t[1] - 12, t[2] + 12, t[3] + 12], y: [H, H + .3], m: 'ceil' })
-    for (const o of st.openings) if (o.kind === 'door') items.push({ k: 'opening', f: s, r: o.rect, head: o.head })
+    if (s === top) {
+      const roof = plate([...indoor.flatMap(r => r.tiles), ...holes], []).map(t => [t[0] - 12, t[1] - 12, t[2] + 12, t[3] + 12] as Box4)
+      for (const t of roof) items.push({ k: 'box', f: s, layer: 'roof', r: t, y: [H, H + .3], m: 'ceil' })
+      // a parapet around the flat roof, with a stone coping
+      for (const e of outline(roof, 14)) items.push({ k: 'box', f: s, layer: 'roof', r: e, y: [H + .3, H + .82], m: 'wall' }, { k: 'box', f: s, layer: 'roof', r: [e[0] - 2, e[1] - 2, e[2] + 2, e[3] + 2], y: [H + .82, H + .86], m: 'stone' })
+    }
+    const inWall = (x: number, y: number) => (st.walls as Poly[]).some(p => inPoly(p, x, y))
+    const inside = (x: number, y: number) => st.rooms.some(r => !r.outdoor && r.tiles.some(t => x >= t[0] && x < t[2] && y >= t[1] && y < t[3])) || st.stairs.some(x2 => x >= x2.box[0] && x < x2.box[2] && y >= x2.box[1] && y < x2.box[3])
+    for (const o of st.openings) {
+      if (o.kind !== 'door') continue
+      items.push({ k: 'opening', f: s, r: o.rect, head: o.head })
+      // the leaf, standing open the way the plan draws it; a door to the outside is a dark metal one
+      if (o.hinge && o.swing && (o.swing[0] !== 0) !== (o.swing[1] !== 0)) {
+        const w = Math.max(60, (o.axis === 'h' ? o.rect[2] - o.rect[0] : o.rect[3] - o.rect[1]) - 14), [hx, hy] = o.hinge, [sx, sy] = o.swing
+        const leaf: Box4 = sx ? [Math.min(hx, hx + sx * w), hy - 2, Math.max(hx, hx + sx * w), hy + 2] : [hx - 2, Math.min(hy, hy + sy * w), hx + 2, Math.max(hy, hy + sy * w)]
+        const mx = (o.rect[0] + o.rect[2]) / 2, my = (o.rect[1] + o.rect[3]) / 2
+        const front = o.axis === 'h' ? !inside(mx, o.rect[1] - 20) || !inside(mx, o.rect[3] + 20) : !inside(o.rect[0] - 20, my) || !inside(o.rect[2] + 20, my)
+        items.push({ k: 'box', f: s, layer: 'int', r: leaf.map(Math.round) as Box4, y: [.01, o.head - .02], m: front ? 'metal' : 'oak' })
+      }
+    }
+    // the ground storey stands on a stone base: cladding courses on every outside face of its walls, and around its windows
+    if (s === bottom) {
+      const outsideAt = (x: number, y: number) => !inWall(x, y) && !inside(x, y)
+      const course = (r: Box4, y0: number, y1: number) => { for (let y = y0; y < y1 - .05; y += .42) items.push({ k: 'box', f: s, layer: 'arch', r: r.map(Math.round) as Box4, y: [y + .015, Math.min(y1, y + .42)], m: 'cladding' }) }
+      for (const p of st.walls as Poly[]) for (let i = 0; i < p.length; i++) {
+        const [ax, ay] = p[i], [bx, by] = p[(i + 1) % p.length], horiz = Math.abs(ay - by) < .5, vert = Math.abs(ax - bx) < .5, len = Math.hypot(bx - ax, by - ay)
+        if ((!horiz && !vert) || len < 12) continue
+        const mx = (ax + bx) / 2, my = (ay + by) / 2
+        for (const sg of [-1, 1]) {
+          const ox = horiz ? 0 : sg, oy = horiz ? sg : 0
+          if (!inWall(mx - ox * 4, my - oy * 4) || !outsideAt(mx + ox * 9, my + oy * 9)) continue          // this side of the edge is the open air
+          course(horiz ? [Math.min(ax, bx) - 3, Math.min(ay, ay + oy * 3), Math.max(ax, bx) + 3, Math.max(ay, ay + oy * 3)] : [Math.min(ax, ax + ox * 3), Math.min(ay, by) - 3, Math.max(ax, ax + ox * 3), Math.max(ay, by) + 3], 0, H)
+        }
+      }
+      for (const o of st.openings) {
+        if (o.kind === 'door') continue
+        const horiz = o.axis === 'h', mx = (o.rect[0] + o.rect[2]) / 2, my = (o.rect[1] + o.rect[3]) / 2
+        for (const sg of [-1, 1]) {
+          const face = horiz ? (sg < 0 ? o.rect[1] : o.rect[3]) : (sg < 0 ? o.rect[0] : o.rect[2])
+          if (!(horiz ? outsideAt(mx, face + sg * 12) : outsideAt(face + sg * 12, my))) continue
+          const r: Box4 = horiz ? [o.rect[0], Math.min(face, face + sg * 3), o.rect[2], Math.max(face, face + sg * 3)] : [Math.min(face, face + sg * 3), o.rect[1], Math.max(face, face + sg * 3), o.rect[3]]
+          if (o.sill > .1) course(r, 0, o.sill)
+          course(r, o.head, H)
+        }
+      }
+    }
     for (const t of furnish(st)) items.push({ ...t, f: s } as Item)
     const terrace = paved(st)
     for (const b of terrace) items.push({ k: 'box', f: s, layer: 'outdoor', r: b.map(Math.round) as Box4, y: s > 0 ? [-.2, 0] : [-.04, .005], m: 'deck' })
@@ -102,13 +147,13 @@ function walkable(flights: Array<{ base: StoreyId; treads: Box4[]; rise: number;
   const c = (t: Box4): [number, number] => [(t[0] + t[2]) / 2, (t[1] + t[3]) / 2]
   const unit = (a: [number, number], b: [number, number]): [number, number] => { const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [(b[0] - a[0]) / l, (b[1] - a[1]) / l] }
   const yawOf = (d: [number, number]) => Math.atan2(-d[0], -d[1])
-  const floorAt = (s: StoreyId, x: number, y: number, box: Box4) => {
+  const floorAt = (s: StoreyId, x: number, y: number, keepOff: Box4[]) => {
     const st = plan.storeys.find(p => p.storey === s); if (!st) return false
-    if (x > box[0] - 30 && x < box[2] + 30 && y > box[1] - 30 && y < box[3] + 30) return false                      // clear of the steps themselves
+    if (keepOff.some(b => x > b[0] - 32 && x < b[2] + 32 && y > b[1] - 32 && y < b[3] + 32)) return false          // a body's width clear of the steps / the stairwell
     return st.rooms.some(r => !r.outdoor && !r.void && r.tiles.some(t => x >= t[0] + 20 && x <= t[2] - 20 && y >= t[1] + 20 && y <= t[3] - 20))
   }
   // a standing spot just off a tread, straight on or (at a landing) to either side
-  const stand = (s: StoreyId, from: [number, number], d: [number, number], box: Box4): [number, number] => {
+  const stand = (s: StoreyId, from: [number, number], d: [number, number], box: Box4[]): [number, number] => {
     for (const reach of [50, 70, 95, 125]) for (const [dx, dy] of [d, [-d[1], d[0]], [d[1], -d[0]]] as Array<[number, number]>) { const x = from[0] + dx * reach, y = from[1] + dy * reach; if (floorAt(s, x, y, box)) return [Math.round(x), Math.round(y)] }
     return [Math.round(from[0] + d[0] * 60), Math.round(from[1] + d[1] * 60)]
   }
@@ -116,7 +161,7 @@ function walkable(flights: Array<{ base: StoreyId; treads: Box4[]; rise: number;
     const n = f.treads.length; if (n < 2) continue
     const up = (f.base + 1) as StoreyId, tb = f.treads.reduce((b, t) => [Math.min(b[0], t[0]), Math.min(b[1], t[1]), Math.max(b[2], t[2]), Math.max(b[3], t[3])] as Box4, [Infinity, Infinity, -Infinity, -Infinity] as Box4)
     const d0 = unit(c(f.treads[0]), c(f.treads[1])), d1 = unit(c(f.treads[n - 2]), c(f.treads[n - 1]))
-    const foot = stand(f.base, c(f.treads[0]), [-d0[0], -d0[1]], tb), top = stand(up, c(f.treads[n - 1]), d1, f.box)
+    const foot = stand(f.base, c(f.treads[0]), [-d0[0], -d0[1]], f.treads), top = stand(up, c(f.treads[n - 1]), d1, [f.box])
     out.path[f.base] = [[foot[0], foot[1], 0], ...f.treads.map((t, i): [number, number, number] => [Math.round(c(t)[0]), Math.round(c(t)[1]), Math.round((i + 1) * f.rise * 100)])]
     out.exit[f.base] = top
     out.trigger[f.base] = [foot[0], foot[1], 75, unit(foot, c(f.treads[0]))]
@@ -126,10 +171,34 @@ function walkable(flights: Array<{ base: StoreyId; treads: Box4[]; rise: number;
     const pad = 110, z = (b: Box4): Box4 => [b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad]
     const join = (a: Box4 | undefined, b: Box4): Box4 => (a ? [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])] : b)
     out.zone[f.base] = join(out.zone[f.base] as Box4 | undefined, z(tb)); out.zone[up] = join(out.zone[up] as Box4 | undefined, z(f.box))
-    // nobody walks through the steps (below) or into the stairwell (above)
-    floors[f.base].rects.push(tb); floors[up].rects.push(f.box)
+    // nobody walks through the steps (below: each tread, so the floor in front of the first one stays free) or into the stairwell (above)
+    floors[f.base].rects.push(...f.treads); floors[up].rects.push(f.box)
   }
   return out
+}
+
+const inPoly = (p: number[][], x: number, y: number) => { let c = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) if ((p[i][1] > y) !== (p[j][1] > y) && x < (p[j][0] - p[i][0]) * (y - p[i][1]) / (p[j][1] - p[i][1]) + p[i][0]) c = !c; return c }
+
+/** The outer edge of a set of rectangles as thin boxes of width `t`, lying just inside the edge. */
+function outline(rects: Box4[], t: number): Box4[] {
+  if (!rects.length) return []
+  const Q = 2, x0 = Math.min(...rects.map(r => r[0])) - Q, y0 = Math.min(...rects.map(r => r[1])) - Q
+  const w = Math.ceil((Math.max(...rects.map(r => r[2])) - x0) / Q) + 2, h = Math.ceil((Math.max(...rects.map(r => r[3])) - y0) / Q) + 2
+  const on = (i: number, j: number) => { if (i < 0 || j < 0 || i >= w || j >= h) return false; const x = x0 + (i + .5) * Q, y = y0 + (j + .5) * Q; return rects.some(r => x >= r[0] && x < r[2] && y >= r[1] && y < r[3]) }
+  const out: Box4[] = []
+  for (let j = 0; j <= h; j++) for (let i = 0, run = -1, side = 0; i <= w; i++) {
+    const a = on(i, j - 1), b = on(i, j), sd = a && !b ? -1 : !a && b ? 1 : 0                              // +1: roof below this line
+    if (sd !== side && run >= 0) { const y = y0 + j * Q; out.push(side > 0 ? [x0 + run * Q, y, x0 + i * Q, y + t] : [x0 + run * Q, y - t, x0 + i * Q, y]); run = -1 }
+    if (sd !== 0 && run < 0) run = i
+    side = sd
+  }
+  for (let i = 0; i <= w; i++) for (let j = 0, run = -1, side = 0; j <= h; j++) {
+    const a = on(i - 1, j), b = on(i, j), sd = a && !b ? -1 : !a && b ? 1 : 0
+    if (sd !== side && run >= 0) { const x = x0 + i * Q; out.push(side > 0 ? [x, y0 + run * Q, x + t, y0 + j * Q] : [x - t, y0 + run * Q, x, y0 + j * Q]); run = -1 }
+    if (sd !== 0 && run < 0) run = j
+    side = sd
+  }
+  return out.filter(e => Math.max(e[2] - e[0], e[3] - e[1]) >= 20).map(e => e.map(Math.round) as Box4)
 }
 
 /** The usual width and depth of a room made of tiles: the median extent across its rows and across its columns. */

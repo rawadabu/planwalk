@@ -70,6 +70,7 @@ export default class Materials {
       plant: std({ color: 0x55703e, roughness: .8 }),
       soil: std({ color: 0x3b2e24, roughness: 1 }),
       stone: std({ color: 0xd8d0c3, roughness: .85 }),
+      cladding: std({ color: 0xb3a48e, roughness: .9 }),                 // stone courses on a facade, a chimney breast
       deck: std({ color: 0xc9bca9, roughness: .8 }),
       paver: std(t.paverDiff ? { map: t.paverDiff, color: 0xe8e2d8, roughness: .9 } : { color: 0xb7aea1, roughness: .9 }),
       grass: std(t.grassDiff ? { map: t.grassDiff, color: 0xb9cc9a, roughness: 1 } : { color: 0x8aa863, roughness: 1 }),

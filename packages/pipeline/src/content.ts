@@ -107,6 +107,7 @@ export function furnish(st: PlanStorey): Thing[] {
   }
 
   // ── a fireplace where one is written: a stone chimney breast with a glass firebox, facing the room ─────────────
+  const hearths: Box[] = []                                            // what is drawn in front of a fireplace is its hearth, not furniture
   for (const n of st.notes) {
     if (!/קמין/.test(n.text)) continue
     const [x, y] = n.at, dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]] as const
@@ -117,7 +118,8 @@ export function furnish(st: PlanStorey): Thing[] {
     else { let bt = Infinity; for (const [dx, dy] of dirs) for (let t = 3; t <= 110 && t < bt; t += 3) if (inRoom(x + dx * t, y + dy * t)) { bt = t; hit = { dx, dy, fx: x + dx * t, fy: y + dy * t }; break } }
     if (!hit) continue
     const slab = (half: number, d0: number, d1: number): Box => (hit!.dy ? [hit!.fx - half, Math.min(hit!.fy + hit!.dy * d0, hit!.fy + hit!.dy * d1), hit!.fx + half, Math.max(hit!.fy + hit!.dy * d0, hit!.fy + hit!.dy * d1)] : [Math.min(hit!.fx + hit!.dx * d0, hit!.fx + hit!.dx * d1), hit!.fy - half, Math.max(hit!.fx + hit!.dx * d0, hit!.fx + hit!.dx * d1), hit!.fy + half])
-    out.push({ k: 'box', layer: 'int', r: R(slab(95, -2, 14)), y: [0, 2.8], m: 'stone' })
+    hearths.push(slab(110, -30, 90))
+    out.push({ k: 'box', layer: 'int', r: R(slab(95, -2, 14)), y: [0, 2.8], m: 'cladding' })
     out.push({ k: 'box', layer: 'int', r: R(slab(60, 14, 16)), y: [.32, .84], m: 'blackGlass' })
     out.push({ k: 'box', layer: 'int', r: R(slab(42, 16, 17)), y: [.38, .45], m: 'flame' })
   }
@@ -152,6 +154,7 @@ export function furnish(st: PlanStorey): Thing[] {
     const w = b[2] - b[0], d = b[3] - b[1], s = Math.min(w, d), l = Math.max(w, d), cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2
     if (s < 28 || l > 340) continue
     const room = roomAt(cx, cy); if (!room || room.void || room.outdoor) continue
+    if (hearths.some(h => cx > h[0] && cx < h[2] && cy > h[1] && cy < h[3])) continue
     const alongX = w >= d
     // which end/side has a wall right behind it
     const behind = (ax: 'x' | 'y') => { const neg = ax === 'x' ? toWall(b[0], cy, -1, 0, 45) : toWall(cx, b[1], 0, -1, 45), pos = ax === 'x' ? toWall(b[2], cy, 1, 0, 45) : toWall(cx, b[3], 0, 1, 45); return neg <= pos ? -1 : 1 }
