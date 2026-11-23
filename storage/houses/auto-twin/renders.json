@@ -138,5 +138,33 @@
   "storey": 1,
   "file": "render_f1-19.jpg",
   "seconds": 297
+ },
+ {
+  "id": "f2-20",
+  "name": "נוף מהמרפסת",
+  "storey": 2,
+  "file": "render_f2-20.jpg",
+  "seconds": 79
+ },
+ {
+  "id": "f2-21",
+  "name": "נוף מהמרפסת",
+  "storey": 2,
+  "file": "render_f2-21.jpg",
+  "seconds": 132
+ },
+ {
+  "id": "x-22",
+  "name": "חזית הרחוב",
+  "storey": 0,
+  "file": "render_x-22.jpg",
+  "seconds": 85
+ },
+ {
+  "id": "x-23",
+  "name": "חזית הגינה",
+  "storey": 0,
+  "file": "render_x-23.jpg",
+  "seconds": 81
  }
 ]
