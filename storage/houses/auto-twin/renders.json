@@ -5,5 +5,12 @@
   "storey": 0,
   "file": "render_f0-0.jpg",
   "seconds": 213
+ },
+ {
+  "id": "f0-1",
+  "name": "מטבח",
+  "storey": 0,
+  "file": "render_f0-1.jpg",
+  "seconds": 196
  }
 ]
