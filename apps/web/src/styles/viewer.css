@@ -326,3 +326,11 @@
 .brief .row{display:flex;flex-wrap:wrap;gap:8px}
 .brief .warnline{color:#b4690e;font-size:12px;margin:0}
 @media (max-width:520px){.brief .styles{grid-template-columns:1fr}.brief{max-height:calc(100% - 28px - 100px)}}
+/* a real picture of the view on screen */
+.realview{width:min(380px,calc(100% - 28px))}
+.realview .quota{margin-top:-4px}
+.realview .gthumb.wait{display:grid;place-items:center;cursor:default;background:linear-gradient(110deg,var(--glass-strong) 30%,rgba(255,255,255,.7) 50%,var(--glass-strong) 70%);background-size:220% 100%;animation:shimmer 1.6s linear infinite}
+.realview .gthumb.wait span{position:static;background:none;color:var(--muted);padding:8px;text-align:center}
+.realview .gthumb.failed{animation:none;background:rgba(180,60,40,.1)}
+@keyframes shimmer{from{background-position:120% 0}to{background-position:-120% 0}}
+@media (prefers-reduced-motion:reduce){.realview .gthumb.wait{animation:none}}

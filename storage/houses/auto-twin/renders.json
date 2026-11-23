@@ -103,5 +103,40 @@
   "storey": 2,
   "file": "render_f2-14.jpg",
   "seconds": 305
+ },
+ {
+  "id": "f2-15",
+  "name": "ח\"ארונות",
+  "storey": 2,
+  "file": "render_f2-15.jpg",
+  "seconds": 145
+ },
+ {
+  "id": "f2-16",
+  "name": "ח\"שינה הורים",
+  "storey": 2,
+  "file": "render_f2-16.jpg",
+  "seconds": 194
+ },
+ {
+  "id": "f1-17",
+  "name": "נוף מהפ\"ישיבה",
+  "storey": 1,
+  "file": "render_f1-17.jpg",
+  "seconds": 93
+ },
+ {
+  "id": "f1-18",
+  "name": "נוף מהמרפסת",
+  "storey": 1,
+  "file": "render_f1-18.jpg",
+  "seconds": 933
+ },
+ {
+  "id": "f1-19",
+  "name": "נוף מהמרפסת",
+  "storey": 1,
+  "file": "render_f1-19.jpg",
+  "seconds": 297
  }
 ]

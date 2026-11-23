@@ -119,5 +119,7 @@ export interface Viewer {
   /** The whole house as a binary glTF (.glb), for Blender, Unreal or offline rendering. */
   exportGLB(): Promise<ArrayBuffer>
   requestRender(): void
+  /** The current frame as a JPEG blob, at most `max` px on its long side (null if the browser cannot read it) */
+  capture(max?: number): Promise<Blob | null>
   destroy(): void
 }

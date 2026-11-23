@@ -17,6 +17,16 @@ export const config = {
   trustedOrigins: (process.env.TRUSTED_ORIGINS ?? 'http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:8787,http://localhost:8787').split(','),
   resendApiKey: process.env.RESEND_API_KEY ?? '',
   mailFrom: process.env.MAIL_FROM ?? 'Planwalk <no-reply@planwalk.app>',
+  /**
+   * Photoreal views: the image model a frame of the house is sent to. 'higgsfield-cli' uses the Higgsfield command-line
+   * tool installed and signed in on this machine (`higgsfield auth login`); 'none' turns the feature off.
+   */
+  realview: {
+    provider: (process.env.REALVIEW_PROVIDER ?? 'higgsfield-cli') as 'higgsfield-cli' | 'none',
+    model: process.env.REALVIEW_MODEL ?? 'seedream_v5_pro',
+    /** how many pictures one project may make */
+    quota: Number(process.env.REALVIEW_QUOTA ?? 20),
+  },
   authSecret: process.env.BETTER_AUTH_SECRET ?? (process.env.NODE_ENV === 'production' ? '' : 'dev-only-secret-change-me-32-characters'),
 }
 if (process.env.NODE_ENV === 'production' && !config.authSecret) throw new Error('BETTER_AUTH_SECRET is required in production')

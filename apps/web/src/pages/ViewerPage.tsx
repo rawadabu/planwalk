@@ -12,6 +12,7 @@ import { SendPanel } from '../viewer/Send'
 import { VersionsPanel } from '../viewer/Versions'
 import { FurnishPanel } from '../viewer/Furnish'
 import { BriefPanel, storedBrief } from '../viewer/Brief'
+import { RealViewPanel } from '../viewer/RealView'
 import { KitchenPanel } from '../viewer/KitchenPanel'
 import { CostPanel } from '../viewer/Cost'
 import { Tour } from '../viewer/Tour'
@@ -109,6 +110,7 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
           {drawer === 'kitchen' && <KitchenPanel viewer={viewer} house={ui.house} houseId={houseId} prices={meta?.prices} session={design.current} onHouse={setEdited} onClose={() => setDrawer(null)} onCost={() => setDrawer('cost')} />}
           {drawer === 'furnish' && <FurnishPanel viewer={viewer} house={ui.house} floor={ui.floor} session={design.current} onHouse={setEdited} onClose={() => setDrawer(null)} onChanged={() => bump(n => n + 1)} />}
           {drawer === 'brief' && <BriefPanel viewer={viewer} house={ui.house} houseId={houseId} meta={meta} session={design.current} onHouse={setEdited} onClose={() => setDrawer(null)} onChanged={() => bump(n => n + 1)} />}
+          {drawer === 'real' && <RealViewPanel viewer={viewer} houseId={houseId} meta={meta} ui={ui} session={design.current} onClose={() => setDrawer(null)} />}
           {drawer === 'styles' && <StylesBar viewer={viewer} house={ui.house} session={design.current} prices={meta?.prices} onHouse={setEdited} onClose={() => setDrawer(null)} onChanged={() => bump(n => n + 1)} />}
           {touring && <Tour viewer={viewer} house={shown!} onEnd={() => setTouring(false)} />}
           {drawer === 'cost' && <CostPanel house={ui.house} houseId={houseId} design={design.current.doc.design} prices={meta?.prices as never} onClose={() => setDrawer(null)} />}

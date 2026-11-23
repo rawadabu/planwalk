@@ -9,7 +9,7 @@ const FLOORS: Array<[StoreyId, string]> = [[2, 'שנייה'], [1, 'ראשונה'
 const TIMES: Array<[Exclude<TimeOfDay, 'custom'>, string]> = [['morning', 'בוקר'], ['noon', 'צהריים'], ['golden', 'שעת זהב'], ['evening', 'ערב']]
 const QUALITIES: Array<[Quality, string]> = [['high', 'גבוהה'], ['medium', 'בינונית'], ['low', 'נמוכה']]
 
-export type Drawer = 'areas' | 'sun' | 'comments' | 'design' | 'kitchen' | 'cost' | 'styles' | 'photos' | 'send' | 'versions' | 'furnish' | 'brief' | null
+export type Drawer = 'areas' | 'sun' | 'comments' | 'design' | 'kitchen' | 'cost' | 'styles' | 'photos' | 'send' | 'versions' | 'furnish' | 'brief' | 'real' | null
 export function Toolbar({ viewer, ui, measuring, setMeasuring, drawer, setDrawer, commentCount, onTour, open, canSend, version = 0, unseen }: { viewer: Viewer; ui: ViewerUiState; measuring: boolean; setMeasuring: (on: boolean) => void; drawer: Drawer; setDrawer: (d: Drawer) => void; commentCount: number; onTour: () => void; open?: boolean; canSend?: boolean; version?: number; unseen?: boolean }) {
   const toggle = (d: Exclude<Drawer, null>) => setDrawer(drawer === d ? null : d)
   const [headBob, setHeadBob] = useState(true)
@@ -40,6 +40,7 @@ export function Toolbar({ viewer, ui, measuring, setMeasuring, drawer, setDrawer
       <span className="sep" />
       <button className="btn" onClick={onTour}>סיור</button>
       <button className="btn" aria-pressed={drawer === 'brief'} onClick={() => toggle('brief')}>שאלון עיצוב</button>
+      <button className="btn" aria-pressed={drawer === 'real'} onClick={() => toggle('real')}>הדמיה אמיתית</button>
       <button className="btn" aria-pressed={drawer === 'photos'} onClick={() => toggle('photos')}>תמונות</button>
       <button className="btn" aria-pressed={drawer === 'styles'} onClick={() => toggle('styles')}>סגנונות</button>
       <button className="btn" aria-pressed={drawer === 'design'} onClick={() => toggle('design')}>עיצוב</button>

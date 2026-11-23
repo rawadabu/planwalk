@@ -269,3 +269,15 @@ export const designBrief = pgTable('design_brief', {
   data: jsonb('data').notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.houseId, t.userId] })])
+
+/** A photoreal picture made from a view of the house (the viewer's own frame, redrawn by an image model). */
+export const realView = pgTable('real_view', {
+  id: text('id').primaryKey(),
+  houseId: text('house_id').notNull().references(() => house.id, { onDelete: 'cascade' }),
+  userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+  room: text('room'),
+  status: text('status').notNull().default('pending'),     // pending | done | failed
+  file: text('file'),                                      // image file in the house folder, once done
+  error: text('error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('real_view_house_idx').on(t.houseId)])

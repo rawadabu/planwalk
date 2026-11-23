@@ -20,6 +20,9 @@ export interface UpdatePreview { target: { id: string; title: string; version: n
   designs: Array<{ designId: string; name: string; author: string | null; kept: number; dropped: Array<{ key: string; what: string }> }> }
 export interface Published { houseId: string; number: number; changes: PlanChanges | null; notified: number; link: string }
 export interface Versions { current: number; seen: number; versions: Array<{ number: number; note: string | null; changes: PlanChanges | null; createdAt: string; by: string | null; dropped: string[] }> }
+/** A photoreal picture made from a view of the house. */
+export interface RealView { id: string; room: string | null; status: 'pending' | 'done' | 'failed'; file: string | null; error: string | null; createdAt: string; by: string | null }
+export interface RealViews { available: boolean; used: number; quota: number; left: number; views: RealView[] }
 export interface JoinInfo { project: string; studio: string; invitedBy: string | null; email: string; name: string | null }
 export interface ProjectRow { id: string; organizationId: string; name: string; kind: ProjectKind; address: string | null; createdAt: string; units: number; houses: number; asClient?: boolean }
 export interface Unit { id: string; number: string; buildingId: string | null; houseId: string | null; floor: number | null; rooms: number | null; areaM2: number | null; status: UnitStatus; priceIls: number | null }
@@ -109,6 +112,14 @@ export const api = {
     req<Comment>(`/api/houses/${id}/comments`, { ...json('POST', b), ...shareHdr(share) }),
   resolveComment: (id: string, resolved: boolean) => req<Comment>(`/api/comments/${id}`, json('PATCH', { resolved })),
   deleteComment: (id: string, share?: string) => req<void>(`/api/comments/${id}`, { method: 'DELETE', ...shareHdr(share) }),
+  realViews: (houseId: string) => req<RealViews>(`/api/houses/${houseId}/realviews`),
+  createRealView: (houseId: string, frame: Blob, b: { room?: string | null; scene: 'interior' | 'exterior'; width: number; height: number; designId?: string }) => {
+    const fd = new FormData()
+    // fields first: the server reads them with the file
+    fd.set('room', b.room ?? ''); fd.set('scene', b.scene); fd.set('width', String(b.width)); fd.set('height', String(b.height)); if (b.designId) fd.set('designId', b.designId)
+    fd.set('file', frame, 'frame.jpg')
+    return req<RealView & { left: number }>(`/api/houses/${houseId}/realviews`, { method: 'POST', body: fd })
+  },
   brief: (houseId: string) => req<{ brief: unknown | null }>(`/api/houses/${houseId}/brief`),
   saveBrief: (houseId: string, brief: unknown) => req<{ brief: unknown }>(`/api/houses/${houseId}/brief`, json('PUT', brief)),
   briefs: (houseId: string) => req<Array<{ name: string | null; brief: unknown; updatedAt: string }>>(`/api/houses/${houseId}/briefs`),

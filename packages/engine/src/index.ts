@@ -125,6 +125,15 @@ export function createViewer(options: ViewerOptions): Viewer {
     resetView: () => { const h = exp.world.house; if (!h) return; exp.player.setFloor(1, h.floors[1].start); if (exp.state.mode !== 'walk') exp.player.setMode('walk') },
     stats: () => { const i = exp.renderer.instance.info; return { calls: i.render.calls, triangles: i.render.triangles, programs: i.programs?.length ?? 0 } },
     requestRender: () => { exp.renderer.renderRequested = true },
+    // the frame on screen as a JPEG (the 3D picture only, none of the page around it)
+    capture: (max = 1536) => new Promise<Blob | null>(resolve => {
+      exp.renderer.renderRequested = true; exp.renderer.update()                      // draw now: the pixels are readable until this task ends
+      const c = exp.canvas, k = Math.min(1, max / Math.max(c.width, c.height)), o = document.createElement('canvas')
+      o.width = Math.max(1, Math.round(c.width * k)); o.height = Math.max(1, Math.round(c.height * k))
+      const g = o.getContext('2d'); if (!g) return resolve(null)
+      g.drawImage(c, 0, 0, o.width, o.height)
+      o.toBlob(b => resolve(b), 'image/jpeg', .92)
+    }),
     // the whole house as a binary glTF (for Blender / Unreal / photoreal rendering): every storey, instances expanded
     exportGLB: async () => {
       const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
