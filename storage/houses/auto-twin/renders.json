@@ -12,5 +12,19 @@
   "storey": 0,
   "file": "render_f0-1.jpg",
   "seconds": 196
+ },
+ {
+  "id": "f0-2",
+  "name": "פ\"ישיבה",
+  "storey": 0,
+  "file": "render_f0-2.jpg",
+  "seconds": 178
+ },
+ {
+  "id": "f0-3",
+  "name": "ממ\"ד",
+  "storey": 0,
+  "file": "render_f0-3.jpg",
+  "seconds": 163
  }
 ]
