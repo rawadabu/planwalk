@@ -1,8 +1,12 @@
 import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, HashRouter, Routes, Route } from 'react-router'
+import { BrowserRouter, HashRouter, MemoryRouter, Routes, Route } from 'react-router'
+import type { ReactNode } from 'react'
 import { STATIC } from './api'
-const Router = STATIC ? HashRouter : BrowserRouter
+// A static build can be told where to open (VITE_START=/h/<house>): it then keeps its address in memory, for hosts
+// that give the page no address bar of its own (an embedded preview).
+const START = import.meta.env.VITE_START as string | undefined
+const Router = ({ children }: { children: ReactNode }) => (STATIC && START ? <MemoryRouter initialEntries={[START]}>{children}</MemoryRouter> : STATIC ? <HashRouter>{children}</HashRouter> : <BrowserRouter>{children}</BrowserRouter>)
 import './styles/tokens.css'
 import Landing from './pages/Landing'
 // The 3D viewer (three.js ≈ 220 kB gzip) loads only when a walkthrough is opened
