@@ -61,8 +61,10 @@ export function cadThings(insts: Instance[], rooms: PlanRoom[], walls: Poly[], o
     const toCentre = (ax: 'x' | 'y') => ((ax === 'x' ? (room.rect[0] + room.rect[2]) / 2 - cx : (room.rect[1] + room.rect[3]) / 2 - cy) >= 0 ? 1 : -1)
     const wet = WET.test(room.name)
     if (kind === 'bed') {
-      const sign = -(backOf(b, alongX ? 'x' : 'y') || 1)                 // feet point away from the wall at the head
-      model(s >= 135 ? 'bedDouble' : 'bedSingle', b, s >= 135 ? 1 : .9, alongX ? facing(sign, 0) : facing(0, sign))
+      // the head is at a wall: at one end of the bed's length, or (a bed drawn almost square) whichever side has the wall
+      const sides = ([['x', -1, toWall(b[0], cy, -1, 0, 45)], ['x', 1, toWall(b[2], cy, 1, 0, 45)], ['y', -1, toWall(cx, b[1], 0, -1, 45)], ['y', 1, toWall(cx, b[3], 0, 1, 45)]] as Array<['x' | 'y', number, number]>)
+        .filter(o => Math.abs(w - d) <= 30 || o[0] === (alongX ? 'x' : 'y')).sort((p, q) => p[2] - q[2])[0]
+      model(s >= 135 ? 'bedDouble' : 'bedSingle', b, s >= 135 ? 1 : .9, sides[0] === 'x' ? facing(-sides[1], 0) : facing(0, -sides[1]))   // feet point away from that wall
     } else if (kind === 'sofa') {
       const back = backOf(b, alongX ? 'y' : 'x', 60), front = back ? -back : toCentre(alongX ? 'y' : 'x')
       model('sofa', b, .78, alongX ? facing(0, front) : facing(front, 0))

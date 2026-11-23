@@ -196,10 +196,48 @@ export function understandCad(cad: Cad, opts: CadOptions = {}): Plan {
     if (dropped || real.length !== gaps.length) r = analyse(walls, [...ops, ...real].map(o => ({ ...o })), strokes, labels)
     for (const room of r.rooms) if (/חלל כפול/.test(room.name)) room.void = true
     if (real.length) warnings.push(`storey ${raw.storey}: ${real.length} doors are read from gaps in the walls (no swing is drawn); which way they open is not known`)
+    // balconies and porches: the outline drawn around the name, not a guess at how far the open air reaches
+    const terraces: Box[] = []
+    {
+      const Q = 4, g = Grid.around(walls, Q, 460), gw = g.w, gh = g.h
+      const cellAt = (x: number, y: number) => { const i = Math.floor((x - g.ox) / Q), j = Math.floor((y - g.oy) / Q); return i < 0 || j < 0 || i >= gw || j >= gh ? -1 : j * gw + i }
+      const mark = (pts: Pt[]) => { for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], c = pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(c[0] - a[0], c[1] - a[1]) / (Q * .5))); for (let t = 0; t <= n; t++) { const k = cellAt(a[0] + (c[0] - a[0]) * t / n, a[1] + (c[1] - a[1]) * t / n); if (k >= 0) g.a[k] = 1 } } }
+      for (const p of walls) g.fill(p, 1)
+      for (const o of r.openings) g.fill([[o.rect[0], o.rect[1]], [o.rect[2], o.rect[1]], [o.rect[2], o.rect[3]], [o.rect[0], o.rect[3]]], 1)
+      for (const l of [...raw.wall, ...raw.column]) mark(l.map(mv))
+      for (const l of raw.door) mark((l.pts as Pt[]).map(mv))
+      for (const { l, pts } of raw.other) if (!l.dashed && l.inst === undefined) { const q = pts.map(mv); mark(l.closed ? [...q, q[0]] : q) }
+      for (const room of r.rooms) {
+        if (!room.outdoor || !room.at) continue
+        let start = cellAt(room.at[0], room.at[1])
+        if (start >= 0 && g.a[start]) for (const d of [1, -1, gw, -gw, 2, -2, 2 * gw, -2 * gw]) if (start + d >= 0 && start + d < gw * gh && !g.a[start + d]) { start += d; break }
+        const seen = new Uint8Array(gw * gh), stack = start >= 0 && !g.a[start] ? [start] : []
+        let n = 0, open = stack.length === 0
+        if (stack.length) seen[start] = 1
+        while (stack.length && !open) {
+          const k = stack.pop()!, i = k % gw, j = (k - i) / gw; n++
+          if (i === 0 || j === 0 || i === gw - 1 || j === gh - 1 || n * (Q / PX_PER_M) ** 2 > 70) { open = true; break }
+          for (const m of [k - 1, k + 1, k - gw, k + gw]) if (!seen[m] && !g.a[m]) { seen[m] = 1; stack.push(m) }
+        }
+        room.tiles = []
+        if (open || n * (Q / PX_PER_M) ** 2 < 1) { room.rect = [Math.round(room.at[0] - 40), Math.round(room.at[1] - 40), Math.round(room.at[0] + 40), Math.round(room.at[1] + 40)]; room.area = 0; continue }
+        // the outline's own lines belong to the floor: grow by a cell, then rectangles
+        const on = (i: number, j: number) => i >= 0 && j >= 0 && i < gw && j < gh && (seen[j * gw + i] === 1 || [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([di, dj]) => seen[(j + dj) * gw + i + di] === 1) && !walls.some(p => { const x = g.ox + (i + .5) * Q, y = g.oy + (j + .5) * Q; return x > p[0][0] && x < p[2][0] && y > p[0][1] && y < p[2][1] }))
+        const runs = new Map<string, Box>()
+        for (let j = 0; j <= gh; j++) {
+          const live = new Set<string>()
+          for (let i = 0; i < gw && j < gh;) { if (!on(i, j)) { i++; continue } let e = i; while (e < gw && on(e, j)) e++; const key = i + ':' + e; live.add(key); const b = runs.get(key); if (b) b[3] = j + 1; else runs.set(key, [i, j, e, j + 1]); i = e }
+          for (const [key, b] of runs) if (!live.has(key)) { room.tiles.push([Math.round(g.ox + b[0] * Q), Math.round(g.oy + b[1] * Q), Math.round(g.ox + b[2] * Q), Math.round(g.oy + b[3] * Q)]); runs.delete(key) }
+        }
+        room.rect = [Math.min(...room.tiles.map(t => t[0])), Math.min(...room.tiles.map(t => t[1])), Math.max(...room.tiles.map(t => t[2])), Math.max(...room.tiles.map(t => t[3]))]
+        room.area = +(n * (Q / PX_PER_M) ** 2).toFixed(2)
+        terraces.push(...room.tiles)
+      }
+    }
     const things = cadThings([...pieces.values()], r.rooms, walls, r.openings, strokes)
     if (process.env.CAD_DEBUG) for (const it of pieces.values()) { const c = [(it.box[0] + it.box[2]) / 2, (it.box[1] + it.box[3]) / 2], room = r.rooms.find(q => q.tiles.some(t => c[0] >= t[0] && c[0] < t[2] && c[1] >= t[1] && c[1] < t[3])); console.log('piece', raw.storey, it.name.padEnd(14), it.layer.padEnd(5), `${Math.round(it.box[2] - it.box[0])}x${Math.round(it.box[3] - it.box[1])}`.padEnd(9), 'parts', it.parts, 'curved', it.curved, '|', room?.name ?? '-') }
     const [x1, y1, x2, y2] = wb
-    storeys.push({ storey: raw.storey, name: STOREY_NAMES[raw.storey + Math.min(0, low)] ?? `קומה ${raw.storey}`, title: raw.title || null, drawing: n, side: b.side, place: { sx: 1, dx: Math.round(dx), dy: Math.round(dy) }, match: +b.match.toFixed(3), party: raw.axis === null ? null : Math.round(raw.axis + dx), bounds: [Math.round(x1 - 30), Math.round(y1 - 30), Math.round(x2 + 30), Math.round(y2 + 30)], walls, rooms: r.rooms, openings: r.openings, notes: r.notes, stairs: r.stairs, railings: r.railings, strokes, things })
+    storeys.push({ storey: raw.storey, name: STOREY_NAMES[raw.storey + Math.min(0, low)] ?? `קומה ${raw.storey}`, title: raw.title || null, drawing: n, side: b.side, place: { sx: 1, dx: Math.round(dx), dy: Math.round(dy) }, match: +b.match.toFixed(3), party: raw.axis === null ? null : Math.round(raw.axis + dx), bounds: [Math.round(x1 - 30), Math.round(y1 - 30), Math.round(x2 + 30), Math.round(y2 + 30)], walls, rooms: r.rooms, openings: r.openings, notes: r.notes, stairs: r.stairs, railings: r.railings, strokes, terraces, things })
   })
   const written = raws.map(r => r.scale).find(v => v) ?? null
   const heights = heightsOf(cad, raws, px)

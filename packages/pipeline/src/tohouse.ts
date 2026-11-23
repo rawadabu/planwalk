@@ -48,6 +48,12 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
     // at the double-height space and the stairwell
     const holes = [...st.rooms.filter(r => r.void).flatMap(r => r.tiles), ...st.stairs.map(x => x.box)]
     if (s > 0) for (const t of plate(indoor.flatMap(r => r.tiles), holes)) items.push({ k: 'box', f: s, layer: 'arch', r: t, y: [-SLAB, -.02], m: 'ceil' })
+    // walls run on through the depth of the slab: without this the edge of a double-height space shows daylight between the storeys
+    if (s > 0) for (const p of st.walls as Poly[]) {
+      if (p.length !== 4) continue
+      const xs = p.map(q => q[0]), ys = p.map(q => q[1]), b: Box4 = [Math.round(Math.min(...xs)), Math.round(Math.min(...ys)), Math.round(Math.max(...xs)), Math.round(Math.max(...ys))]
+      if (p.every(q => (Math.abs(q[0] - Math.min(...xs)) < .6 || Math.abs(q[0] - Math.max(...xs)) < .6) && (Math.abs(q[1] - Math.min(...ys)) < .6 || Math.abs(q[1] - Math.max(...ys)) < .6)) && b[2] > b[0] && b[3] > b[1]) items.push({ k: 'box', f: s, layer: 'arch', r: b, y: [-SLAB, 0], m: 'wall' })
+    }
     // the roof covers the whole top storey: rooms, walls, the double-height space and the stairwell
     if (s === top) {
       const roof = plate([...indoor.flatMap(r => r.tiles), ...holes], []).map(t => [t[0] - 12, t[1] - 12, t[2] + 12, t[3] + 12] as Box4)
@@ -96,7 +102,7 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
       }
     }
     for (const t of furnish(st)) items.push({ ...t, f: s } as Item)
-    const terrace = paved(st)
+    const terrace = st.terraces ?? paved(st)
     for (const b of terrace) items.push({ k: 'box', f: s, layer: 'outdoor', r: b.map(Math.round) as Box4, y: s > 0 ? [-.2, 0] : [-.04, .005], m: 'deck' })
     // upper-storey balconies get a glass railing along their open edges
     if (s > 0) for (const r of balconyRails(st, terrace)) { const b = r.map(Math.round) as Box4; floors[s].rects.push(b); items.push({ k: 'box', f: s, layer: 'outdoor', r: b, y: [.02, 1.05], m: 'railGlass' }, { k: 'box', f: s, layer: 'outdoor', r: b, y: [1.05, 1.09], m: 'metal' }) }
