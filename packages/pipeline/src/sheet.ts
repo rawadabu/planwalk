@@ -1,3 +1,4 @@
+import type { Item } from '@planwalk/house'
 import type { PdfLayers, Pt } from './pdf'
 import { allLabels, layerRoles, type Box, type Label } from './labels'
 import { openings as readOpenings, type Opening } from './openings'
@@ -33,11 +34,14 @@ export interface PlanRoom {
   void?: boolean
 }
 export interface PlanOpening { kind: 'door' | 'window' | 'glass-door'; rect: Box; axis: 'h' | 'v'; sill: number; head: number; hinge?: Pt; swing?: Pt; sure: boolean }
+type NoF<T> = T extends unknown ? Omit<T, 'f'> : never
 export interface PlanNote { text: string; at: Pt; box: Box; kind: 'fixture' | 'room' | 'note' }
-export interface PlanStorey { storey: number; name: string; title: string | null; drawing: number; side: 'left' | 'right' | 'whole'; place: Place; match: number; /** x of the party wall when this is one unit of a twin house */ party: number | null; bounds: Box; walls: Poly[]; openings: PlanOpening[]; rooms: PlanRoom[]; notes: PlanNote[]; stairs: Stair[]; railings: Box[]; strokes: Stroke[] }
+export interface PlanStorey { storey: number; name: string; title: string | null; drawing: number; side: 'left' | 'right' | 'whole'; place: Place; match: number; /** x of the party wall when this is one unit of a twin house */ party: number | null; bounds: Box; walls: Poly[]; openings: PlanOpening[]; rooms: PlanRoom[]; notes: PlanNote[]; stairs: Stair[]; railings: Box[]; strokes: Stroke[]; /** furniture already known piece by piece (a CAD drawing's blocks); when present the builder does not look for furniture by shape */ things?: Array<NoF<Item>> }
 export interface Plan {
   format: 'plan@1'
   scale: { ptPerCm: number; pxPerPt: number; from: 'dimensions' | 'assumed' | 'drawing'; dimensions: number; agree: number; written: number | null }
+  /** heights the plans state (metres): clear ceiling and floor-to-floor. Absent = not stated, the builder assumes them. */
+  heights?: { ceiling: number; storey: number }
   storeys: PlanStorey[]
   warnings: string[]
 }

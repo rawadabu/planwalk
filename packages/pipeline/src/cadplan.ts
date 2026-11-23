@@ -6,6 +6,7 @@ import { openings as readOpenings, type Opening } from './openings'
 import { clipX, bbox, type Poly } from './plan'
 import { Grid, components } from './raster'
 import type { Stroke } from './stairs'
+import { cadThings, type Instance } from './cadthings'
 
 /**
  * A CAD drawing (DWG) → plan@1. The drawing is in real units, so nothing is calibrated and nothing is read by a model:
@@ -155,13 +156,19 @@ export function understandCad(cad: Cad, opts: CadOptions = {}): Plan {
     const wb = bbox(walls), near = (p: Pt, m: number) => p[0] > wb[0] - m && p[0] < wb[2] + m && p[1] > wb[1] - m && p[1] < wb[3] + m
     const ops = b.ops.filter(o => mine((o.box[0] + o.box[2]) / 2)).map(o => moveOp(o, dx, dy))
     const reach = .8 * Math.max(wb[2] - wb[0], wb[3] - wb[1])
-    const strokes: Stroke[] = []
+    const strokes: Stroke[] = [], pieces = new Map<number, Instance>()
     for (const { l, pts } of raw.other) {
       const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length; if (!mine(cx)) continue
       const q = pts.map(mv); if (!q.every(p => near(p, 150))) continue
       if (!l.curved && q.length === 2 && Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]) > reach) continue      // section and axis lines
       const pen = /^\d{3}$/.test(l.layer) ? Number(l.layer) / 100 * 2.835 : .5
       strokes.push({ pts: q, width: pen, dashed: l.dashed, curved: l.curved, closed: l.closed, layer: l.layer })
+      if (l.inst !== undefined) {                                       // one placed block = one piece
+        const it = pieces.get(l.inst) ?? { name: cad.inserts[l.inst]?.name ?? '', layer: l.layer, box: [Infinity, Infinity, -Infinity, -Infinity] as Box, curved: 0, parts: 0 }
+        for (const [x, y] of q) { if (x < it.box[0]) it.box[0] = x; if (y < it.box[1]) it.box[1] = y; if (x > it.box[2]) it.box[2] = x; if (y > it.box[3]) it.box[3] = y }
+        it.parts++; if (l.curved) it.curved++
+        pieces.set(l.inst, it)
+      }
     }
     const labels = raw.texts.filter(t => mine(t.at[0]) && !MARK.test(t.text) && !TITLE.test(t.text) && !/^[-+±\d.,:=xX/ ]*$/.test(t.text)).map(t => {
       const text = expand(t.text), p = mv(t.at), a = Math.min(0, t.span), b = Math.max(0, t.span)
@@ -189,11 +196,42 @@ export function understandCad(cad: Cad, opts: CadOptions = {}): Plan {
     if (dropped || real.length !== gaps.length) r = analyse(walls, [...ops, ...real].map(o => ({ ...o })), strokes, labels)
     for (const room of r.rooms) if (/חלל כפול/.test(room.name)) room.void = true
     if (real.length) warnings.push(`storey ${raw.storey}: ${real.length} doors are read from gaps in the walls (no swing is drawn); which way they open is not known`)
+    const things = cadThings([...pieces.values()], r.rooms, walls, r.openings, strokes)
+    if (process.env.CAD_DEBUG) for (const it of pieces.values()) { const c = [(it.box[0] + it.box[2]) / 2, (it.box[1] + it.box[3]) / 2], room = r.rooms.find(q => q.tiles.some(t => c[0] >= t[0] && c[0] < t[2] && c[1] >= t[1] && c[1] < t[3])); console.log('piece', raw.storey, it.name.padEnd(14), it.layer.padEnd(5), `${Math.round(it.box[2] - it.box[0])}x${Math.round(it.box[3] - it.box[1])}`.padEnd(9), 'parts', it.parts, 'curved', it.curved, '|', room?.name ?? '-') }
     const [x1, y1, x2, y2] = wb
-    storeys.push({ storey: raw.storey, name: STOREY_NAMES[raw.storey + Math.min(0, low)] ?? `קומה ${raw.storey}`, title: raw.title || null, drawing: n, side: b.side, place: { sx: 1, dx: Math.round(dx), dy: Math.round(dy) }, match: +b.match.toFixed(3), party: raw.axis === null ? null : Math.round(raw.axis + dx), bounds: [Math.round(x1 - 30), Math.round(y1 - 30), Math.round(x2 + 30), Math.round(y2 + 30)], walls, rooms: r.rooms, openings: r.openings, notes: r.notes, stairs: r.stairs, railings: r.railings, strokes })
+    storeys.push({ storey: raw.storey, name: STOREY_NAMES[raw.storey + Math.min(0, low)] ?? `קומה ${raw.storey}`, title: raw.title || null, drawing: n, side: b.side, place: { sx: 1, dx: Math.round(dx), dy: Math.round(dy) }, match: +b.match.toFixed(3), party: raw.axis === null ? null : Math.round(raw.axis + dx), bounds: [Math.round(x1 - 30), Math.round(y1 - 30), Math.round(x2 + 30), Math.round(y2 + 30)], walls, rooms: r.rooms, openings: r.openings, notes: r.notes, stairs: r.stairs, railings: r.railings, strokes, things })
   })
   const written = raws.map(r => r.scale).find(v => v) ?? null
-  return { format: 'plan@1', scale: { ptPerCm: 72 / 2.54 / (written ?? 100), pxPerPt: K / (72 / 2.54 / (written ?? 100)), from: 'drawing', dimensions: 0, agree: 0, written }, storeys, warnings }
+  const heights = heightsOf(cad, raws, px)
+  if (heights.note) warnings.push(heights.note)
+  return { format: 'plan@1', scale: { ptPerCm: 72 / 2.54 / (written ?? 100), pxPerPt: K / (72 / 2.54 / (written ?? 100)), from: 'drawing', dimensions: 0, agree: 0, written }, ...(heights.value ? { heights: heights.value } : {}), storeys, warnings }
+}
+
+/**
+ * Heights as the drawing states them: the clear ceiling from the note on the sections ("גובה תקרה נטו H=+270"), the
+ * floor-to-floor from the level mark written most often on the storey above the ground ("+312").
+ */
+function heightsOf(cad: Cad, raws: Raw[], px: (p: readonly number[]) => Pt): { value?: { ceiling: number; storey: number }; note?: string } {
+  const ceilings = cad.texts.map(t => /תקרה נטו[^\d]*?(\d{3})(?!\d)/.exec(t.text)?.[1]).filter(Boolean).map(Number).filter(v => v >= 230 && v <= 400)
+  let ceiling = ceilings.length ? Math.max(...ceilings) / 100 : null                    // a shelter's lower ceiling is noted too: the house's is the higher
+  let storey: number | null = null
+  const up = raws.find(r => r.storey === raws[0].storey + 1)
+  if (up) {
+    const votes = new Map<number, number>()
+    for (const t of cad.texts) {
+      const m = /^\+\s?(\d{3}|\d\.\d{2})$/.exec(t.text.trim()); if (!m) continue
+      const p = px(t.at); if (p[0] < up.region[0] || p[0] > up.region[2] || p[1] < up.region[1] || p[1] > up.region[3]) continue
+      const cm = m[1].includes('.') ? Math.round(Number(m[1]) * 100) : Number(m[1])
+      if (cm >= 250 && cm <= 420) votes.set(cm, (votes.get(cm) ?? 0) + 1)
+    }
+    const best = [...votes].sort((a, b) => b[1] - a[1])[0]
+    if (best && best[1] >= 2) storey = best[0] / 100
+  }
+  if (ceiling !== null && storey !== null && (storey - ceiling < .15 || storey - ceiling > .7)) storey = null      // not a floor level after all
+  if (ceiling === null && storey === null) return { note: 'the drawing states no ceiling height or floor levels; 2.80 m under a 25 cm slab is assumed' }
+  if (ceiling === null) return { value: { ceiling: Math.round((storey! - .35) * 100) / 100, storey: storey! }, note: `floor-to-floor ${storey!.toFixed(2)} m is read from the level marks; the clear ceiling is taken 35 cm less` }
+  if (storey === null) return { value: { ceiling, storey: Math.round((ceiling + .3) * 100) / 100 }, note: `the clear ceiling ${ceiling.toFixed(2)} m is read from the sections; floor-to-floor is taken 30 cm more` }
+  return { value: { ceiling, storey } }
 }
 
 /** Abbreviations architects write, spelled out (the room rules read the words). */

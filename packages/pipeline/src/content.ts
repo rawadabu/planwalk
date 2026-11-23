@@ -124,6 +124,8 @@ export function furnish(st: PlanStorey): Thing[] {
     out.push({ k: 'box', layer: 'int', r: R(slab(42, 16, 17)), y: [.38, .45], m: 'flame' })
   }
 
+  if (st.things) out.push(...st.things)
+  else {
   // ── drawn furniture and sanitary ware, by shape ────────────────────────────────────────────────────────────────
   const thin = st.strokes.filter(s => s.width <= .4 && !s.dashed && s.pts.length >= 2)
   const boxes: Array<{ b: Box; curved: boolean }> = []
@@ -246,6 +248,7 @@ export function furnish(st: PlanStorey): Thing[] {
     bedAt(bd.n.at[0], bd.n.at[1], Number(bd.m![1]), Number(bd.m![2]))
   })
 
+  }
   // ── ceiling lights: a grid in every indoor room ────────────────────────────────────────────────────────────────
   const lights: Array<[number, number]> = []
   for (const r of st.rooms) {

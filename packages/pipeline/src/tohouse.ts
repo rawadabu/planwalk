@@ -6,12 +6,13 @@ import { Grid, close } from './raster'
 
 /** plan@1 → house@1 (what the viewer walks through) plus one minimap SVG per storey. */
 export interface HouseOptions { id?: string; title?: string; file?: string }
-const H = 2.8, STOREY = 3.05
 type Box4 = [number, number, number, number]
 const overlap = (a: number[], b: number[], m = 0) => Math.min(a[2], b[2]) - Math.max(a[0], b[0]) > m && Math.min(a[3], b[3]) - Math.max(a[1], b[1]) > m
 
 export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; maps: Record<string, string>; warnings: string[] } {
   const warnings = [...plan.warnings]
+  // heights: what the plans state, else the usual 2.80 m ceiling under a 25 cm slab
+  const H = plan.heights?.ceiling ?? 2.8, STOREY = plan.heights?.storey ?? 3.05, SLAB = Math.round((STOREY - H) * 100) / 100
   const floors = {} as Record<StoreyId, Floor>, maps: Record<string, string> = {}, items: Item[] = []
   const flights: Array<{ base: StoreyId; treads: Box4[]; rise: number; box: Box4 }> = []
   const top = Math.max(...plan.storeys.map(s => s.storey))
@@ -46,7 +47,7 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
     // the structural slab under this storey: one continuous plate under rooms and the walls between them, open only
     // at the double-height space and the stairwell
     const holes = [...st.rooms.filter(r => r.void).flatMap(r => r.tiles), ...st.stairs.map(x => x.box)]
-    if (s > 0) for (const t of plate(indoor.flatMap(r => r.tiles), holes)) items.push({ k: 'box', f: s, layer: 'arch', r: t, y: [-.25, -.02], m: 'ceil' })
+    if (s > 0) for (const t of plate(indoor.flatMap(r => r.tiles), holes)) items.push({ k: 'box', f: s, layer: 'arch', r: t, y: [-SLAB, -.02], m: 'ceil' })
     // the roof covers the whole top storey: rooms, walls, the double-height space and the stairwell
     if (s === top) {
       const roof = plate([...indoor.flatMap(r => r.tiles), ...holes], []).map(t => [t[0] - 12, t[1] - 12, t[2] + 12, t[3] + 12] as Box4)
@@ -132,7 +133,7 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
   const house: House = {
     format: 'house@1', id: opts.id ?? 'auto', title: opts.title ?? 'בית מתוכנית',
     source: { file: opts.file ?? 'plan.pdf', scale: plan.scale.written ? `1:${plan.scale.written}` : '1:100', pxPerMetre: PX_PER_M, note: plan.scale.from === 'drawing' ? 'pipeline v2 · CAD drawing, real units' : `pipeline v2 · scale from ${plan.scale.agree} dimensions` },
-    storey: { height: H, slab: .25, assumed: true }, floors: floors as House['floors'], void: [],
+    storey: { height: H, slab: SLAB, assumed: !plan.heights }, floors: floors as House['floors'], void: [],
     stairs: walkable(flights, floors, plan), canopies: [], site, items,
   }
   // a house of one or two storeys is entered on the storey that names an entrance, else on its lowest one

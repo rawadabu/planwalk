@@ -63,8 +63,30 @@ test('the house is built: two storeys, a stair you can climb, no third storey', 
   const { house } = toHouse(plan, { id: 't' })
   assert.ok(house.floors[0].rooms.length > 5 && house.floors[1].rooms.length > 5)
   assert.equal(house.floors[2].rooms.length, 0)
+  // heights as drawn: level +312 is written on the upper storey (the ceiling note is on the sections, outside this cut-out)
+  assert.equal(plan.heights?.storey, 3.12); assert.equal(house.storey.assumed, false)
+  assert.ok(Math.abs(house.storey.height + house.storey.slab - 3.12) < 1e-9)
   assert.equal(house.entry, 0)                                                              // the visit starts at the entrance hall
   assert.ok(house.stairs.path[0]!.length > 10)
   assert.ok(house.items.some(i => i.k === 'steps'))
   assert.match(house.source.note ?? '', /CAD drawing/)
+})
+
+test('furniture is the blocks the architect placed: each one where it was drawn', () => {
+  const things = (n: number) => storey(n).things ?? []
+  const count = (n: number, pred: (t: any) => boolean) => things(n).filter(pred).length
+  const model = (name: string) => (t: any) => t.k === 'model' && t.name === name
+  // ground: a seating group, easy chairs, the dining table with its six chairs, a kitchen with an island
+  assert.ok(count(0, model('sofa')) >= 1 && count(0, model('armchair')) >= 4)
+  assert.equal(count(0, model('roundTable')), 1); assert.ok(count(0, model('diningChair')) >= 6)
+  assert.equal(count(0, model('island')), 1)
+  for (const kind of ['sink', 'hob', 'fridge']) assert.ok(count(0, t => t.k === 'cabinet' && t.kind === kind) >= 1, kind)
+  assert.ok(count(0, t => t.k === 'cabinet') >= 10)
+  // upstairs: the parents' bed, two children's beds, a bath, toilets and basins
+  assert.equal(count(1, model('bedDouble')), 1); assert.equal(count(1, model('bedSingle')), 2)
+  assert.equal(count(1, model('bathtub')), 1); assert.equal(count(1, model('toilet')), 2); assert.ok(count(1, model('vanity')) >= 2)
+  // every piece stands inside a room of its storey
+  for (const s of plan.storeys) for (const t of things(s.storey) as any[]) { if (!t.r) continue; const cx = (t.r[0] + t.r[2]) / 2, cy = (t.r[1] + t.r[3]) / 2; assert.ok(s.rooms.some(r => !r.outdoor && r.tiles.some(q => cx >= q[0] - 12 && cx <= q[2] + 12 && cy >= q[1] - 12 && cy <= q[3] + 12)), `${t.k} ${t.name ?? t.kind ?? ''} at ${cx},${cy}`) }
+  const { house } = toHouse(plan, { id: 't' })
+  assert.ok(house.items.filter(i => i.k === 'model').length >= 20)
 })

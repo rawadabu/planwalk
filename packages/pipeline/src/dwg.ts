@@ -17,10 +17,12 @@ export interface CadLine {
   dashed: boolean
   /** the block this was drawn inside, if any */
   block: string | null
+  /** index (in `inserts`) of the top-level block placement this belongs to: one piece of furniture, one window … */
+  inst?: number
 }
 /** `span`: how far the text runs from `at` along its direction; negative when it is written backwards (Hebrew fonts run right to left) */
 export interface CadText { layer: string; text: string; at: P2; height: number; span: number; rotation: number; block: string | null }
-export interface CadInsert { layer: string; name: string; at: P2; rotation: number; sx: number; sy: number }
+export interface CadInsert { layer: string; name: string; at: P2; rotation: number; sx: number; sy: number; /** 0 = placed in the drawing itself, 1+ = inside another block */ depth: number }
 export interface Cad { lines: CadLine[]; texts: CadText[]; inserts: CadInsert[]; layers: string[]; /** $INSUNITS: 4 mm, 5 cm, 6 m, 0 not stated */ units: number }
 
 const KEY: Record<string, string> = { t: 'א', c: 'ב', d: 'ג', s: 'ד', v: 'ה', u: 'ו', z: 'ז', j: 'ח', y: 'ט', h: 'י', f: 'כ', k: 'ל', n: 'מ', b: 'נ', x: 'ס', g: 'ע', p: 'פ', m: 'צ', e: 'ק', r: 'ר', a: 'ש', ',': 'ת', l: 'ך', o: 'ם', i: 'ן', ';': 'ף', '.': 'ץ', w: "'", q: '/', '/': '.' }
@@ -74,12 +76,12 @@ export function flatten(db: any): Cad {
   for (const b of db?.tables?.BLOCK_RECORD?.entries ?? []) blocks.set(b.name, b)
   const out: Cad = { lines: [], texts: [], inserts: [], layers: [], units: Number(db?.header?.INSUNITS ?? 0) || 0 }
   const seen = new Set<string>()
-  const walk = (ents: any[] | undefined, m: M, depth: number, inLayer: string | null, block: string | null) => {
+  const walk = (ents: any[] | undefined, m: M, depth: number, inLayer: string | null, block: string | null, inst?: number) => {
     for (const e of ents ?? []) {
       if (!e || e.isVisible === false || e.isInPaperSpace) continue
       const layer: string = e.layer === '0' && inLayer ? inLayer : String(e.layer ?? '0')
       const k = Math.hypot(m[0], m[1]), dashed = DASH.test(String(e.lineType ?? ''))
-      const push = (pts: P2[], closed: boolean, curved: boolean, extra: Partial<CadLine> = {}) => { const q = pts.filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1])); if (q.length >= 2) { out.lines.push({ layer, pts: q, closed, curved, dashed, block, ...extra }); seen.add(layer) } }
+      const push = (pts: P2[], closed: boolean, curved: boolean, extra: Partial<CadLine> = {}) => { const q = pts.filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1])); if (q.length >= 2) { out.lines.push({ layer, pts: q, closed, curved, dashed, block, ...(inst === undefined ? {} : { inst }), ...extra }); seen.add(layer) } }
       if (e.type === 'LINE') push([at(m, e.startPoint), at(m, e.endPoint)], false, false)
       else if (e.type === 'LWPOLYLINE' || e.type === 'POLYLINE2D' || e.type === 'POLYLINE3D') {
         const vs: any[] = e.vertices ?? [], closed = !!(e.flag & 1), pts: P2[] = []
@@ -109,8 +111,9 @@ export function flatten(db: any): Cad {
       } else if (e.type === 'INSERT' && depth < 6) {
         const b = blocks.get(e.name); if (!b || !e.insertionPoint) continue
         const r = Number(e.rotation) || 0, sx = Number(e.xScale ?? 1) || 1, sy = Number(e.yScale ?? 1) || 1, c = Math.cos(r), s = Math.sin(r), bp = b.basePoint ?? { x: 0, y: 0 }
-        out.inserts.push({ layer, name: String(e.name), at: at(m, e.insertionPoint), rotation: r, sx, sy })
-        walk(b.entities, mul(mul(m, [c * sx, s * sx, -s * sy, c * sy, e.insertionPoint.x, e.insertionPoint.y]), [1, 0, 0, 1, -bp.x, -bp.y]), depth + 1, layer, String(e.name))
+        out.inserts.push({ layer, name: String(e.name), at: at(m, e.insertionPoint), rotation: r, sx, sy, depth })
+        const top = inst ?? out.inserts.length - 1
+        walk(b.entities, mul(mul(m, [c * sx, s * sx, -s * sy, c * sy, e.insertionPoint.x, e.insertionPoint.y]), [1, 0, 0, 1, -bp.x, -bp.y]), depth + 1, layer, String(e.name), top)
       }
     }
   }

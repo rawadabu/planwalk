@@ -14,6 +14,7 @@ import Environment from './components/Environment'
 //   arch[f] = structure of storey f (always visible while walking, so the house looks whole from outside)
 //   int[f]  = interior of storey f (only the active storey and the one you can see through the void are drawn)
 import Neighbourhood from './components/Neighbourhood'
+import { setStorey } from './units'
 
 export default class World {
   [key: string]: any
@@ -34,6 +35,7 @@ export default class World {
     const exp = this.experience, res = exp.resources
     this.house = res.items.house
     if (!this.house) { exp.trigger('error', 'Could not load the house data'); return }
+    setStorey(this.house.storey?.height, this.house.storey?.slab)              // before anything is built: every height follows
     this.materials = new Materials(res, res.maxAniso)
     this.batcher = new StaticBatcher(this.materials, this.groups)
     this.architecture = new Architecture(this)
@@ -58,6 +60,7 @@ export default class World {
   rebuild(house) {
     const exp = this.experience
     this.house = house
+    setStorey(house.storey?.height, house.storey?.slab)
     this.batcher.dispose(); this.fireplace?.dispose(); this.roomSkins?.dispose()
     if (exp.story?.built) { exp.story.dispose(); exp.story.built = false }
     this.architecture = new Architecture(this)
