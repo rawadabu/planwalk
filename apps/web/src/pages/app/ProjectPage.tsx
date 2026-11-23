@@ -5,7 +5,7 @@ import { api, type HouseRow, type NewShare, type ProjectDetail, type ShareRow, t
 const ROLE_CAN = {
   edit: ['owner', 'admin', 'architect'], upload: ['owner', 'admin', 'architect'], unit: ['owner', 'admin', 'sales'], share: ['owner', 'admin', 'architect', 'sales'],
 }
-const STATUS_LABEL: Record<string, string> = { uploaded: 'Uploaded · waiting for processing', extracting: 'Reading walls from the plans', review: 'Needs review', furnishing: 'Furnishing', ready: 'Ready', failed: 'Failed' }
+const STATUS_LABEL: Record<string, string> = { uploaded: 'Uploaded · waiting to build', extracting: 'Building the 3D model…', review: 'Needs your review', furnishing: 'Furnishing', ready: 'Reviewed · ready to share', failed: 'Failed' }
 const ils = (n: number | null) => (n == null ? '—' : '₪' + n.toLocaleString('en-US'))
 
 export default function ProjectPage() {
@@ -14,6 +14,9 @@ export default function ProjectPage() {
   const load = () => api.project(id).then(setP).catch(e => setError(e.message))
   useEffect(() => { load() }, [id])
   useEffect(() => { if (p) document.title = `${p.name} · Planwalk` }, [p])
+  // while plans are building, keep the page fresh
+  const building = !!p?.uploads.some(u => u.status === 'uploaded' || u.status === 'extracting')
+  useEffect(() => { if (!building) return; const t = setInterval(load, 2000); return () => clearInterval(t) }, [building, id])
   if (error) return <main className="wrap dash"><p className="bad">{error}</p><Link to="/app">Back to projects</Link></main>
   if (!p) return <main className="wrap app-loading">Loading…</main>
   const can = (k: keyof typeof ROLE_CAN) => ROLE_CAN[k].includes(p.role)
@@ -48,7 +51,14 @@ export default function ProjectPage() {
         {can('upload') && <UploadForm projectId={p.id} onDone={load} />}
         {p.uploads.length === 0 ? <p className="empty">No plans uploaded yet.</p> : (
           <ul className="rows">{p.uploads.map(u => (
-            <li key={u.id}><span><b>{u.fileName}</b><small>{(u.sizeBytes / 1e6).toFixed(1)} MB · {new Date(u.createdAt).toLocaleDateString()}</small></span><em className={`st st-${u.status}`}>{STATUS_LABEL[u.status] ?? u.status}</em></li>
+            <li key={u.id}>
+              <span><b>{u.fileName}</b><small>{(u.sizeBytes / 1e6).toFixed(1)} MB · {new Date(u.createdAt).toLocaleDateString()}{u.status === 'failed' && u.error ? ` · ${u.error}` : ''}</small></span>
+              <span className="uprow">
+                <em className={`st st-${u.status}`}>{STATUS_LABEL[u.status] ?? u.status}</em>
+                {(u.status === 'review' || u.status === 'ready') && can('upload') && <Link className="btn sm" to={`/app/review/${u.id}`}>{u.status === 'review' ? 'Review' : 'Review again'}</Link>}
+                {u.status === 'failed' && can('upload') && <button className="btn sm" onClick={() => api.rebuildUpload(u.id).then(load).catch(e => setError(e.message))}>Try again</button>}
+              </span>
+            </li>
           ))}</ul>
         )}
       </section>

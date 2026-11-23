@@ -130,6 +130,9 @@ export const planUpload = pgTable('plan_upload', {
   fileName: text('file_name').notNull(),
   sizeBytes: integer('size_bytes').notNull(),
   status: uploadStatus('status').notNull().default('uploaded'),
+  houseId: text('house_id').references(() => house.id, { onDelete: 'set null' }),     // the model built from these plans
+  error: text('error'),                                                              // why the build failed
+  report: jsonb('report'),                                                           // what the pipeline understood (scale, storeys, warnings)
   createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('upload_project_idx').on(t.projectId)])

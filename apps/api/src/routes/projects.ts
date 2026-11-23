@@ -8,6 +8,7 @@ import { requireProject, requireUser, roleIn } from '../lib/guard.js'
 import { can } from '../lib/permissions.js'
 import { storage } from '../lib/storage.js'
 import { config } from '../config.js'
+import { buildUpload } from '../lib/build.js'
 
 const CreateProject = z.object({
   organizationId: z.string().min(1),
@@ -133,6 +134,7 @@ export async function projectRoutes(app: FastifyInstance) {
     const key = `projects/${ctx.project.id}/${id}.pdf`
     await storage.write(key, buf)
     const [row] = await db.insert(planUpload).values({ id, projectId: ctx.project.id, fileKey: key, fileName: part.filename.replace(/[^\w.\- ]/g, '_').slice(0, 120), sizeBytes: buf.length, createdBy: ctx.session.user.id }).returning()
+    void buildUpload(row.id)                                 // build in the background; the page polls /api/uploads/:id
     return reply.code(201).send(row)
   })
 }

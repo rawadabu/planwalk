@@ -8,7 +8,7 @@ import { defaultStatements, adminAc, ownerAc, memberAc } from 'better-auth/plugi
 export const statements = {
   ...defaultStatements,
   project: ['read', 'create', 'update', 'delete'],
-  upload: ['create'],
+  upload: ['create', 'review'],
   unit: ['update'],
   share: ['create', 'revoke'],
   comment: ['create', 'resolve', 'delete'],
@@ -17,9 +17,9 @@ export const statements = {
 export const ac = createAccessControl(statements)
 
 export const roles = {
-  owner: ac.newRole({ ...ownerAc.statements, project: ['read', 'create', 'update', 'delete'], upload: ['create'], unit: ['update'], share: ['create', 'revoke'], comment: ['create', 'resolve', 'delete'], design: ['create', 'update', 'delete'] }),
-  admin: ac.newRole({ ...adminAc.statements, project: ['read', 'create', 'update', 'delete'], upload: ['create'], unit: ['update'], share: ['create', 'revoke'], comment: ['create', 'resolve', 'delete'], design: ['create', 'update', 'delete'] }),
-  architect: ac.newRole({ ...memberAc.statements, project: ['read', 'create', 'update'], upload: ['create'], share: ['create', 'revoke'], comment: ['create', 'resolve'], design: ['create', 'update', 'delete'] }),
+  owner: ac.newRole({ ...ownerAc.statements, project: ['read', 'create', 'update', 'delete'], upload: ['create', 'review'], unit: ['update'], share: ['create', 'revoke'], comment: ['create', 'resolve', 'delete'], design: ['create', 'update', 'delete'] }),
+  admin: ac.newRole({ ...adminAc.statements, project: ['read', 'create', 'update', 'delete'], upload: ['create', 'review'], unit: ['update'], share: ['create', 'revoke'], comment: ['create', 'resolve', 'delete'], design: ['create', 'update', 'delete'] }),
+  architect: ac.newRole({ ...memberAc.statements, project: ['read', 'create', 'update'], upload: ['create', 'review'], share: ['create', 'revoke'], comment: ['create', 'resolve'], design: ['create', 'update', 'delete'] }),
   sales: ac.newRole({ ...memberAc.statements, project: ['read'], unit: ['update'], share: ['create', 'revoke'], comment: ['create', 'resolve'], design: ['create', 'update'] }),
   viewer: ac.newRole({ ...memberAc.statements, project: ['read'], comment: ['create'] }),
 }

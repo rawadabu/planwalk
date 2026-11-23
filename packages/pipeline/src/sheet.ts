@@ -294,8 +294,9 @@ export function analyse(walls: Poly[], ops: PxOpening[], strokes: Stroke[], labe
     const sides = o.axis === 'h' ? [roomAt(mid, o.at - off), roomAt(mid, o.at + off)] : [roomAt(o.at - off, mid), roomAt(o.at + off, mid)]
     const len = (o.to - o.from) / PX_PER_M
     const toOutdoorRoom = sides.some(s => s?.outdoor), wet = sides.some(s => s && WET.test(s.name))
-    if (len >= 2 || (toOutdoorRoom && len >= 1.8)) return { kind: 'glass-door', rect, axis: o.axis, sill: 0, head: 2.5, sure: toOutdoorRoom && len >= 2 }
-    return { kind: 'window', rect, axis: o.axis, sill: wet ? 1.5 : 1, head: 2.2, sure: false }
+    // only the in-between widths are a real question: a short opening is a window, a very wide one a glass wall
+    if (len >= 2 || (toOutdoorRoom && len >= 1.8)) return { kind: 'glass-door', rect, axis: o.axis, sill: 0, head: 2.5, sure: toOutdoorRoom || len >= 2.4 }
+    return { kind: 'window', rect, axis: o.axis, sill: wet ? 1.5 : 1, head: 2.2, sure: len < 1.4 }
   })
   // glazing that turns a corner with a glass door is part of the same glass wall
   const touch = (a: Box, b: Box) => dist(a, b) < 14

@@ -9,7 +9,19 @@ export interface Me { user: { id: string; name: string; email: string }; activeO
 export interface ProjectRow { id: string; organizationId: string; name: string; kind: ProjectKind; address: string | null; createdAt: string; units: number; houses: number }
 export interface Unit { id: string; number: string; buildingId: string | null; houseId: string | null; floor: number | null; rooms: number | null; areaM2: number | null; status: UnitStatus; priceIls: number | null }
 export interface HouseRow { id: string; title: string; public: boolean; projectId: string | null }
-export interface Upload { id: string; fileName: string; sizeBytes: number; status: string; createdAt: string }
+export interface BuildReport { readings: 'api' | 'cache' | 'none'; scale: { ptPerCm: number; from: 'dimensions' | 'assumed'; dimensions: number; agree: number; written: number | null }; warnings: string[]; storeys: Array<{ storey: number; name: string; title: string | null; rooms: number; unsureRooms: number; openings: number; unsureOpenings: number; stairs: number }> }
+export interface Upload { id: string; projectId?: string; fileName: string; sizeBytes: number; status: string; createdAt: string; houseId?: string | null; error?: string | null; report?: BuildReport | null }
+type Box = [number, number, number, number]
+/** plan@1 as the review screen needs it: what was understood from the sheet, per storey, in house px (≈ cm). */
+export interface PlanDoc {
+  scale: BuildReport['scale']; warnings: string[]
+  storeys: Array<{
+    storey: number; name: string; title: string | null; bounds: Box; walls: Array<Array<[number, number]>>
+    rooms: Array<{ name: string; rect: Box; area: number; outdoor: boolean; from: 'label' | 'split' | 'guess'; at?: [number, number]; tiles: Box[]; void?: boolean }>
+    openings: Array<{ kind: 'door' | 'window' | 'glass-door'; rect: Box; axis: 'h' | 'v'; sure: boolean }>
+    stairs: Array<{ box: Box; treads: Box[] }>; railings: Box[]
+  }>
+}
 export interface ProjectDetail extends Omit<ProjectRow, 'units' | 'houses'> { role: string; lat: number | null; lng: number | null; northDeg: number | null; buildings: Array<{ id: string; name: string }>; units: Unit[]; houses: HouseRow[]; uploads: Upload[] }
 export interface ShareRow { id: string; permission: 'view' | 'comment'; label: string | null; expiresAt: string | null; createdAt: string; revokedAt: string | null }
 export interface NewShare extends Omit<ShareRow, 'createdAt' | 'revokedAt'> { token: string; path: string }
@@ -50,6 +62,11 @@ export const api = {
   createUnit: (id: string, b: { number: string; buildingName?: string; floor?: number; rooms?: number; areaM2?: number; priceIls?: number; houseId?: string }) => req<Unit>(`/api/projects/${id}/units`, json('POST', b)),
   updateUnit: (id: string, b: { status?: UnitStatus; priceIls?: number | null }) => req<Unit>(`/api/units/${id}`, json('PATCH', b)),
   uploadPlans: (id: string, file: File) => { const fd = new FormData(); fd.set('file', file); return req<Upload>(`/api/projects/${id}/uploads`, { method: 'POST', body: fd }) },
+  upload: (id: string) => req<Upload>(`/api/uploads/${id}`),
+  uploadPlan: (id: string) => req<PlanDoc>(`/api/uploads/${id}/plan`),
+  editPlan: (id: string, b: { rooms?: Array<{ storey: number; index: number; name: string }>; openings?: Array<{ storey: number; index: number; kind: 'window' | 'glass-door' }> }) => req<{ report: BuildReport }>(`/api/uploads/${id}/plan`, json('PATCH', b)),
+  publishUpload: (id: string) => req<Upload>(`/api/uploads/${id}/publish`, { method: 'POST' }),
+  rebuildUpload: (id: string) => req<{ ok: boolean }>(`/api/uploads/${id}/rebuild`, { method: 'POST' }),
   shares: (houseId: string) => req<ShareRow[]>(`/api/houses/${houseId}/shares`),
   createShare: (houseId: string, b: { permission: 'view' | 'comment'; expiresInDays: number | null; label?: string }) => req<NewShare>(`/api/houses/${houseId}/shares`, json('POST', b)),
   revokeShare: (id: string) => req<void>(`/api/shares/${id}`, { method: 'DELETE' }),
