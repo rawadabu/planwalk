@@ -74,12 +74,52 @@ export function furnish(st: PlanStorey): Thing[] {
 
   // ── wardrobes: "ארון 240" — a tall run that long, against the wall behind the label ────────────────────────────
   for (const n of st.notes) {
-    const m = /^ארון\s+(\d{2,3})/.exec(n.text); if (!m) continue
-    const len = Number(m[1]) * .99318, alongX = n.box[2] - n.box[0] >= n.box[3] - n.box[1], [x, y] = n.at
+    const m = /^ארון(?:\s+(\d{2,3}))?$/.exec(n.text.trim()); if (!m) continue
+    if (!m[1] && KITCHEN.test(roomAt(n.at[0], n.at[1])?.name ?? '')) continue          // a kitchen's "ארון" is one of its modules
+    const len = Number(m[1] ?? 110) * .99318, alongX = n.box[2] - n.box[0] >= n.box[3] - n.box[1], [x, y] = n.at
     const neg = alongX ? toWall(x, y, 0, -1, 70) : toWall(x, y, -1, 0, 70), pos = alongX ? toWall(x, y, 0, 1, 70) : toWall(x, y, 1, 0, 70)
     const sign = neg <= pos ? -1 : 1, d = Math.min(neg, pos), back = (alongX ? y : x) + (Number.isFinite(d) ? sign * d : sign * 30)
     const c1 = Math.min(back, back - sign * 60), c2 = Math.max(back, back - sign * 60)
     out.push({ k: 'tall', r: R(alongX ? [x - len / 2, c1, x + len / 2, c2] : [c1, y - len / 2, c2, y + len / 2]) })
+  }
+
+  // ── a closet room is lined with wardrobes: along each long wall, where the wall is solid (not at a doorway) ───
+  for (const r of st.rooms) {
+    if (r.outdoor || r.void || !/ארונות/.test(r.name)) continue
+    const [x1, y1, x2, y2] = r.rect, alongX = x2 - x1 >= y2 - y1, lo = alongX ? x1 : y1, hi = alongX ? x2 : y2, short = alongX ? y2 - y1 : x2 - x1
+    const runs: Array<{ side: number; a: number; b: number }> = []
+    for (const side of [-1, 1]) {
+      const face = side < 0 ? (alongX ? y1 : x1) : (alongX ? y2 : x2)
+      let a = NaN, best: [number, number] | null = null
+      for (let p = lo + 5; p <= hi + 5; p += 10) {
+        const solid = p < hi && [6, 14].some(t => (alongX ? wall(p, face + side * t) : wall(face + side * t, p)))
+        if (solid && Number.isNaN(a)) a = p
+        if (!solid && !Number.isNaN(a)) { if (!best || p - a > best[1] - best[0]) best = [a, p]; a = NaN }
+      }
+      if (best && best[1] - best[0] >= 100) runs.push({ side, a: best[0], b: best[1] - 5 })
+    }
+    // two rows need room to stand between them
+    const use = short >= 175 ? runs : runs.sort((p, q) => (q.b - q.a) - (p.b - p.a)).slice(0, 1)
+    for (const u of use) {
+      const face = u.side < 0 ? (alongX ? y1 : x1) : (alongX ? y2 : x2), c1 = Math.min(face, face - u.side * 58), c2 = Math.max(face, face - u.side * 58)
+      out.push({ k: 'tall', r: R(alongX ? [u.a, c1, u.b, c2] : [c1, u.a, c2, u.b]) })
+    }
+  }
+
+  // ── a fireplace where one is written: a stone chimney breast with a glass firebox, facing the room ─────────────
+  for (const n of st.notes) {
+    if (!/קמין/.test(n.text)) continue
+    const [x, y] = n.at, dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]] as const
+    const inRoom = (px: number, py: number) => { const r = roomAt(px, py); return !!r && !r.outdoor && !r.void && !wall(px, py) }
+    // the wall face: from a label on the wall, the nearest way into a room; from a label in the room, the nearest wall
+    let hit: { dx: number; dy: number; fx: number; fy: number } | null = null
+    if (inRoom(x, y)) { const o = dirs.map(([dx, dy]) => ({ dx, dy, t: toWall(x, y, dx, dy, 110) })).sort((p, q) => p.t - q.t)[0]; if (Number.isFinite(o.t)) hit = { dx: -o.dx, dy: -o.dy, fx: x + o.dx * o.t, fy: y + o.dy * o.t } }
+    else { let bt = Infinity; for (const [dx, dy] of dirs) for (let t = 3; t <= 110 && t < bt; t += 3) if (inRoom(x + dx * t, y + dy * t)) { bt = t; hit = { dx, dy, fx: x + dx * t, fy: y + dy * t }; break } }
+    if (!hit) continue
+    const slab = (half: number, d0: number, d1: number): Box => (hit!.dy ? [hit!.fx - half, Math.min(hit!.fy + hit!.dy * d0, hit!.fy + hit!.dy * d1), hit!.fx + half, Math.max(hit!.fy + hit!.dy * d0, hit!.fy + hit!.dy * d1)] : [Math.min(hit!.fx + hit!.dx * d0, hit!.fx + hit!.dx * d1), hit!.fy - half, Math.max(hit!.fx + hit!.dx * d0, hit!.fx + hit!.dx * d1), hit!.fy + half])
+    out.push({ k: 'box', layer: 'int', r: R(slab(95, -2, 14)), y: [0, 2.8], m: 'stone' })
+    out.push({ k: 'box', layer: 'int', r: R(slab(60, 14, 16)), y: [.32, .84], m: 'blackGlass' })
+    out.push({ k: 'box', layer: 'int', r: R(slab(42, 16, 17)), y: [.38, .45], m: 'flame' })
   }
 
   // ── drawn furniture and sanitary ware, by shape ────────────────────────────────────────────────────────────────
@@ -117,7 +157,7 @@ export function furnish(st: PlanStorey): Thing[] {
     const behind = (ax: 'x' | 'y') => { const neg = ax === 'x' ? toWall(b[0], cy, -1, 0, 45) : toWall(cx, b[1], 0, -1, 45), pos = ax === 'x' ? toWall(b[2], cy, 1, 0, 45) : toWall(cx, b[3], 0, 1, 45); return neg <= pos ? -1 : 1 }
     const toCentre = (ax: 'x' | 'y') => { const rc = ax === 'x' ? (room.rect[0] + room.rect[2]) / 2 - cx : (room.rect[1] + room.rect[3]) / 2 - cy; return rc >= 0 ? 1 : -1 }
     if (WET.test(room.name)) {
-      if (s >= 60 && s <= 95 && l >= 145 && l <= 195) model('bathtub', b, .56, alongX ? 0 : Math.PI / 2)
+      if (s >= 60 && s <= 95 && l >= 145 && l <= 195 && curved >= 3) model('bathtub', b, .56, alongX ? 0 : Math.PI / 2)   // a tub is drawn with rounded ends
       continue                                                          // toilets and basins are found stroke by stroke below
     }
     // beds: a shape with a mattress label inside it is that bed (or those beds, when two are drawn touching)

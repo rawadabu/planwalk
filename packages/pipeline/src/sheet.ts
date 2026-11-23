@@ -46,6 +46,8 @@ export interface Options { unit?: 'left' | 'right'; order?: 'rtl' | 'ltr' }
 const STOREY_NAMES: Record<number, string> = { [-1]: 'מרתף', 0: 'קומת קרקע', 1: 'קומה ראשונה', 2: 'קומה שנייה', 3: 'קומה שלישית' }
 const OUTDOOR = /מרפסת|גינה|חצר|חניה|חנייה|פרגולה|גג|דק|בריכה/
 const WET = /מקלחת|שירותים|אמבט|רחצה/
+const ENTRANCE = /מבוא|כניסה|לובי/
+const COUNTER = /כיור|מגירות|כיריים|מדיח|תנור|משטח/
 
 const dist = (a: Box, b: Box) => Math.max(0, Math.max(a[0], b[0]) - Math.min(a[2], b[2]), Math.max(a[1], b[1]) - Math.min(a[3], b[3]))
 const centre = (b: Box): Pt => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]
@@ -180,11 +182,25 @@ export function analyse(walls: Poly[], ops: PxOpening[], strokes: Stroke[], labe
     o.at = o.axis === 'h' ? o.hinge[1] : o.hinge[0]
     o.swing = [Math.sign(Math.round(open[0] - o.hinge[0])), Math.sign(Math.round(open[1] - o.hinge[1]))]
   }
+  const skip = new Set<PxOpening>()
   for (const o of ops) {
     // across the wall: at least a wall's thickness, so the band seals the gap between the two wall ends
     const half = o.kind === 'door' ? 6 : Math.max(8, (o.axis === 'h' ? o.box[3] - o.box[1] : o.box[2] - o.box[0]) / 2)
     const b: Box = o.axis === 'h' ? [o.from - 6, o.at - half, o.to + 6, o.at + half] : [o.at - half, o.from - 6, o.at + half, o.to + 6]
     bands.push(b)
+    // lines drawn along the face of a solid wall (a shelter's sliding blast shutter, a pocket) are not an opening in it
+    if (o.kind !== 'door') {
+      let solid = 0, all = 0
+      for (let t = .1; t < .95; t += .1) { const x = o.axis === 'h' ? o.from + (o.to - o.from) * t : o.at, y = o.axis === 'h' ? o.at : o.from + (o.to - o.from) * t; all++; if (wallAt(x, y)) solid++ }
+      if (solid >= .7 * all) { skip.add(o); continue }
+      // an opening sits between two wall ends (or meets other glazing at a corner); lines floating beside a wall do not
+      const endOk = (v: number) => [-half * .6, 0, half * .6].some(d => [4, 10, 16].some(t => { const a = v + Math.sign(v - (o.from + o.to) / 2) * t; return o.axis === 'h' ? wallAt(a, o.at + d) : wallAt(o.at + d, a) }))
+        || ops.some(q => q !== o && Math.max(0, Math.max(q.box[0], o.box[0]) - Math.min(q.box[2], o.box[2]), Math.max(q.box[1], o.box[1]) - Math.min(q.box[3], o.box[3])) < 14)
+      if (!endOk(o.from) && !endOk(o.to)) { skip.add(o); continue }
+      // a recess in one face of a wall (the pocket a shutter slides into): solid wall right behind it
+      const m = (o.from + o.to) / 2, behind = [-1, 1].some(sg => [half + 8, half + 14].every(t => (o.axis === 'h' ? wallAt(m, o.at + sg * t) : wallAt(o.at + sg * t, m))))
+      if (behind) { skip.add(o); continue }
+    }
     const before = g.like(); before.a.set(g.a)
     rectFill(b, o.kind === 'door' ? 4 : 3)
     for (let k = 0; k < w * h; k++) if (before.a[k] === 1) g.a[k] = 1          // never paint over a wall
@@ -256,8 +272,34 @@ export function analyse(walls: Poly[], ops: PxOpening[], strokes: Stroke[], labe
     const id = addRoom('', 'guess', false)
     for (let k = 0; k < w * h; k++) if (closed.lab.a[k] === region) owner[k] = id
   }
+  // a room is one connected piece: what the division left detached from the name (a passage behind a wall) is its own space
+  for (let id = 0, n0 = rooms.length; id < n0; id++) {
+    const comp = components(g, k => owner[k] === id); if (comp.sizes.length <= 2) continue
+    const at = rooms[id].at ? cellOf(rooms[id].at!) : -1
+    let keep = at >= 0 ? comp.lab.a[at] : 0
+    if (!keep) keep = comp.sizes.indexOf(Math.max(...comp.sizes.slice(1)), 1)
+    const fresh = new Map<number, number>()
+    for (let k = 0; k < w * h; k++) {
+      const c = comp.lab.a[k]; if (!c || c === keep) continue
+      if (comp.sizes[c] * (CELL / PX_PER_M) ** 2 < 1.2) continue                      // a sliver stays with the room
+      if (!fresh.has(c)) fresh.set(c, addRoom('', 'guess', false))
+      owner[k] = fresh.get(c)!
+    }
+  }
+  // an entrance is often named outside its door ("מבואת כניסה" with an arrow): the name belongs to the unnamed room behind that door
+  const named = new Set<(typeof roomLabels)[number]>()
+  for (const l of roomLabels) {
+    if (l.region !== -1 || !ENTRANCE.test(l.text)) continue
+    const doors = ops.filter(o => o.kind === 'door' && !skip.has(o)).map(o => ({ o, d: Math.hypot((o.axis === 'h' ? (o.from + o.to) / 2 : o.at) - l.c[0], (o.axis === 'h' ? o.at : (o.from + o.to) / 2) - l.c[1]) })).filter(x => x.d < 320).sort((a, b) => a.d - b.d)
+    for (const { o } of doors) {
+      const mid = (o.from + o.to) / 2, sides = (o.axis === 'h' ? [[mid, o.at - 28], [mid, o.at + 28]] : [[o.at - 28, mid], [o.at + 28, mid]]).map(q => { const k = cellOf(q as Pt); return k < 0 ? -1 : owner[k] })
+      const id = sides.find(i => i >= 0 && rooms[i].from === 'guess' && !rooms[i].name)
+      if (id == null) continue
+      rooms[id].name = l.text; rooms[id].from = 'label'; named.add(l); break
+    }
+  }
   // names written outside (terraces, gardens): the open ground nearest each name, within reach
-  const outLabels = roomLabels.filter(l => l.region === -1)
+  const outLabels = roomLabels.filter(l => l.region === -1 && !named.has(l))
   if (outLabels.length) growIn(outLabels.map(l => l.cell), outLabels.map(l => addRoom(l.text, 'label', true, l.c)), k => outside(k), 520 / CELL)
 
   // measure
@@ -287,7 +329,13 @@ export function analyse(walls: Poly[], ops: PxOpening[], strokes: Stroke[], labe
 
   // openings: a door swing is a door; glazing is a glass door when it opens onto a named outdoor space or is very wide
   const roomAt = (x: number, y: number) => { const k = cellOf([x, y]); return k < 0 || owner[k] < 0 ? null : rooms[owner[k]] }
-  const openings: PlanOpening[] = ops.map((o, n) => {
+  // cabinets and sinks written along a wall: glazing above them is a window however wide it is
+  const counters = notes.filter(n => COUNTER.test(n.text))
+  const openings: PlanOpening[] = ops.flatMap((o, n): PlanOpening[] => {
+    if (skip.has(o)) return []
+    return [classify(o, n)]
+  })
+  function classify(o: PxOpening, n: number): PlanOpening {
     const b = bands[n], rect: Box = [Math.round(b[0]), Math.round(b[1]), Math.round(b[2]), Math.round(b[3])]
     if (o.kind === 'door') return { kind: 'door', rect, axis: o.axis, sill: 0, head: 2.1, hinge: o.hinge, swing: o.swing, sure: true }
     const mid = (o.from + o.to) / 2, off = (o.axis === 'h' ? b[3] - b[1] : b[2] - b[0]) / 2 + 14
@@ -295,9 +343,11 @@ export function analyse(walls: Poly[], ops: PxOpening[], strokes: Stroke[], labe
     const len = (o.to - o.from) / PX_PER_M
     const toOutdoorRoom = sides.some(s => s?.outdoor), wet = sides.some(s => s && WET.test(s.name))
     // only the in-between widths are a real question: a short opening is a window, a very wide one a glass wall
+    const overCounter = counters.filter(c => (o.axis === 'h' ? c.at[0] > o.from - 10 && c.at[0] < o.to + 10 && Math.abs(c.at[1] - o.at) < 75 : c.at[1] > o.from - 10 && c.at[1] < o.to + 10 && Math.abs(c.at[0] - o.at) < 75)).length
+    if (overCounter >= 1 && !wet) return { kind: 'window', rect, axis: o.axis, sill: 1.05, head: 2.2, sure: true }
     if (len >= 2 || (toOutdoorRoom && len >= 1.8)) return { kind: 'glass-door', rect, axis: o.axis, sill: 0, head: 2.5, sure: toOutdoorRoom || len >= 2.4 }
     return { kind: 'window', rect, axis: o.axis, sill: wet ? 1.5 : 1, head: 2.2, sure: len < 1.4 }
-  })
+  }
   // glazing that turns a corner with a glass door is part of the same glass wall
   const touch = (a: Box, b: Box) => dist(a, b) < 14
   for (let again = true; again;) { again = false; for (const o of openings) if (o.kind === 'window' && o.axis && openings.some(d => d.kind === 'glass-door' && d.axis !== o.axis && touch(d.rect, o.rect))) { o.kind = 'glass-door'; o.sill = 0; o.head = 2.5; again = true } }

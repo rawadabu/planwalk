@@ -21,7 +21,8 @@ export default class Collision {
       this.floors[f] = {
         bounds: fl.bounds,
         polys: fl.walls.map(p => ({ p, x1: Math.min(...p.map(q => q[0])) - RAD, x2: Math.max(...p.map(q => q[0])) + RAD, y1: Math.min(...p.map(q => q[1])) - RAD, y2: Math.max(...p.map(q => q[1])) + RAD })),
-        rects: fl.rects,
+        // furniture and railings, plus every window (glazing with a sill): you walk through a glass door, not a window
+        rects: [...fl.rects, ...fl.glass.filter(g => g[4] >= .3).map(g => [g[0], g[1], g[2], g[3]])],
       }
     }
   }

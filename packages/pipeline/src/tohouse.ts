@@ -13,13 +13,22 @@ const overlap = (a: number[], b: number[], m = 0) => Math.min(a[2], b[2]) - Math
 export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; maps: Record<string, string>; warnings: string[] } {
   const warnings = [...plan.warnings]
   const floors = {} as Record<StoreyId, Floor>, maps: Record<string, string> = {}, items: Item[] = []
+  const flights: Array<{ base: StoreyId; treads: Box4[]; rise: number; box: Box4 }> = []
   const top = Math.max(...plan.storeys.map(s => s.storey))
   for (const s of [0, 1, 2] as StoreyId[]) {
     const st = plan.storeys.find(p => p.storey === s)
     if (!st) { floors[s] = { name: `קומה ${s}`, bounds: [0, 0, 100, 100], map: '', start: { x: 50, y: 50, yaw: 0 }, walls: [], glass: [], rooms: [], indoor: 0, rects: [] }; warnings.push(`the sheet has no storey ${s}`); continue }
     const indoor = st.rooms.filter(r => !r.outdoor && !r.void).sort((a, b) => a.area - b.area)          // small rooms first: lookups take the first match
     const rest = [...st.rooms.filter(r => r.void), ...st.rooms.filter(r => r.outdoor)]
-    const dims = (r: PlanStorey['rooms'][number]) => `${Math.round((r.rect[2] - r.rect[0]) / PX_PER_M * 10) * 10} × ${Math.round((r.rect[3] - r.rect[1]) / PX_PER_M * 10) * 10}`
+    // a room's size as written on plans: of the room itself when it is a rectangle, of its main rectangle when it has
+    // a nook or an entry notch, and as an area when it is a real L or U shape
+    const cm = (px: number) => Math.round(px / PX_PER_M * 10) * 10
+    const dims = (r: PlanStorey['rooms'][number]) => {
+      const w = r.rect[2] - r.rect[0], d = r.rect[3] - r.rect[1], full = r.area * PX_PER_M * PX_PER_M
+      if (full >= .88 * w * d) return `${cm(w)} × ${cm(d)}`
+      const m = typical(r.tiles)
+      return m && Math.abs(m[0] * m[1] - full) <= .15 * full ? `${cm(m[0])} × ${cm(m[1])}` : `${r.area.toFixed(1)} מ"ר`
+    }
     const tuple = (r: PlanStorey['rooms'][number]): Floor['rooms'][number] => [r.name, r.void || r.outdoor ? '' : dims(r), r.rect[0], r.rect[1], r.rect[2], r.rect[3]]
     const big = [...indoor].sort((a, b) => b.area - a.area)[0]
     const start = big?.at ? { x: Math.round(big.at[0]), y: Math.round(big.at[1] + 40), yaw: 0 } : { x: (st.bounds[0] + st.bounds[2]) / 2, y: (st.bounds[1] + st.bounds[3]) / 2, yaw: 0 }
@@ -27,7 +36,9 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
     floors[s] = {
       name: st.name, bounds: st.bounds as Floor['bounds'], map, start, walls: st.walls as Floor['walls'],
       glass: st.openings.filter(o => o.kind !== 'door').map(o => [o.rect[0], o.rect[1], o.rect[2], o.rect[3], o.sill, o.head]),
-      rooms: [...indoor.map(tuple), ...rest.map(tuple), ['חוץ', '', -9999, -9999, 99999, 99999]], indoor: indoor.length, rects: [],
+      rooms: [...indoor.map(tuple), ...rest.map(tuple), ['חוץ', '', -9999, -9999, 99999, 99999]], indoor: indoor.length,
+      // what stops a walker besides walls: railings, and the open floor of a double-height space
+      rects: [...st.railings.map(r => r.map(Math.round) as Box4), ...st.rooms.filter(r => r.void).flatMap(r => r.tiles)],
     }
     maps[map] = svg(st)
     for (const r of indoor) for (const t of r.tiles) items.push({ k: 'box', f: s, layer: 'arch', r: t, y: [-.02, 0], m: 'floor' })
@@ -42,7 +53,7 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
     const terrace = paved(st)
     for (const b of terrace) items.push({ k: 'box', f: s, layer: 'outdoor', r: b.map(Math.round) as Box4, y: s > 0 ? [-.2, 0] : [-.04, .005], m: 'deck' })
     // upper-storey balconies get a glass railing along their open edges
-    if (s > 0) for (const r of balconyRails(st, terrace)) { const b = r.map(Math.round) as Box4; items.push({ k: 'box', f: s, layer: 'outdoor', r: b, y: [.02, 1.05], m: 'railGlass' }, { k: 'box', f: s, layer: 'outdoor', r: b, y: [1.05, 1.09], m: 'metal' }) }
+    if (s > 0) for (const r of balconyRails(st, terrace)) { const b = r.map(Math.round) as Box4; floors[s].rects.push(b); items.push({ k: 'box', f: s, layer: 'outdoor', r: b, y: [.02, 1.05], m: 'railGlass' }, { k: 'box', f: s, layer: 'outdoor', r: b, y: [1.05, 1.09], m: 'metal' }) }
     // railings: glass with a metal rail
     for (const r of st.railings) { const b: [number, number, number, number] = [Math.round(r[0] - 1), Math.round(r[1] - 1), Math.round(r[2] + 1), Math.round(r[3] + 1)]; items.push({ k: 'box', f: s, layer: 'int', r: b, y: [.05, 1], m: 'railGlass' }, { k: 'box', f: s, layer: 'int', r: b, y: [1, 1.04], m: 'metal' }) }
     // the stair up from this storey: drawn complete on the storey above; the bottom steps may only show here
@@ -52,8 +63,10 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
       const lead: Box4[] = []
       if (here.ordered) for (const t of here.treads) { if (above.treads.some(a => overlap(a, t, 4))) break; lead.push(t) }
       const treads = [...lead, ...above.treads].map(t => t.map(Math.round) as Box4)
-      items.push({ k: 'steps', f: s, layer: 'int', treads, rise: STOREY / (treads.length + 1) })
+      const rise = STOREY / (treads.length + 1)
+      items.push({ k: 'steps', f: s, layer: 'int', treads, rise })
       if (!above.ordered) warnings.push(`storey ${s}: no up-arrow on the stair; step order is a guess`)
+      flights.push({ base: s, treads, rise, box: above.box.map(Math.round) as Box4 })
     }
     // under the lowest stair there is floor
     if (here && s === Math.min(...plan.storeys.map(p => p.storey))) items.push({ k: 'box', f: s, layer: 'arch', r: here.box.map(Math.round) as Box4, y: [-.02, 0], m: 'floor' })
@@ -75,9 +88,66 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
     format: 'house@1', id: opts.id ?? 'auto', title: opts.title ?? 'בית מתוכנית',
     source: { file: opts.file ?? 'plan.pdf', scale: plan.scale.written ? `1:${plan.scale.written}` : '1:100', pxPerMetre: PX_PER_M, note: `pipeline v2 · scale from ${plan.scale.agree} dimensions` },
     storey: { height: H, slab: .25, assumed: true }, floors: floors as House['floors'], void: [],
-    stairs: { step: .175, path: {}, exit: {}, trigger: {}, zone: {}, arrive: {} }, canopies: [], site, items,
+    stairs: walkable(flights, floors, plan), canopies: [], site, items,
   }
   return { house, maps, warnings }
+}
+
+/**
+ * Stairs you can walk: for every flight a path over its treads (foot → each tread → the floor above), where walking
+ * into it starts the climb or the descent, and a blocked footprint so nobody walks through the steps or the stairwell.
+ */
+function walkable(flights: Array<{ base: StoreyId; treads: Box4[]; rise: number; box: Box4 }>, floors: Record<StoreyId, Floor>, plan: Plan): House['stairs'] {
+  const out: House['stairs'] = { step: .01, path: {}, exit: {}, trigger: {}, zone: {}, arrive: {}, down: {} }
+  const c = (t: Box4): [number, number] => [(t[0] + t[2]) / 2, (t[1] + t[3]) / 2]
+  const unit = (a: [number, number], b: [number, number]): [number, number] => { const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [(b[0] - a[0]) / l, (b[1] - a[1]) / l] }
+  const yawOf = (d: [number, number]) => Math.atan2(-d[0], -d[1])
+  const floorAt = (s: StoreyId, x: number, y: number, box: Box4) => {
+    const st = plan.storeys.find(p => p.storey === s); if (!st) return false
+    if (x > box[0] - 30 && x < box[2] + 30 && y > box[1] - 30 && y < box[3] + 30) return false                      // clear of the steps themselves
+    return st.rooms.some(r => !r.outdoor && !r.void && r.tiles.some(t => x >= t[0] + 20 && x <= t[2] - 20 && y >= t[1] + 20 && y <= t[3] - 20))
+  }
+  // a standing spot just off a tread, straight on or (at a landing) to either side
+  const stand = (s: StoreyId, from: [number, number], d: [number, number], box: Box4): [number, number] => {
+    for (const reach of [50, 70, 95, 125]) for (const [dx, dy] of [d, [-d[1], d[0]], [d[1], -d[0]]] as Array<[number, number]>) { const x = from[0] + dx * reach, y = from[1] + dy * reach; if (floorAt(s, x, y, box)) return [Math.round(x), Math.round(y)] }
+    return [Math.round(from[0] + d[0] * 60), Math.round(from[1] + d[1] * 60)]
+  }
+  for (const f of flights) {
+    const n = f.treads.length; if (n < 2) continue
+    const up = (f.base + 1) as StoreyId, tb = f.treads.reduce((b, t) => [Math.min(b[0], t[0]), Math.min(b[1], t[1]), Math.max(b[2], t[2]), Math.max(b[3], t[3])] as Box4, [Infinity, Infinity, -Infinity, -Infinity] as Box4)
+    const d0 = unit(c(f.treads[0]), c(f.treads[1])), d1 = unit(c(f.treads[n - 2]), c(f.treads[n - 1]))
+    const foot = stand(f.base, c(f.treads[0]), [-d0[0], -d0[1]], tb), top = stand(up, c(f.treads[n - 1]), d1, f.box)
+    out.path[f.base] = [[foot[0], foot[1], 0], ...f.treads.map((t, i): [number, number, number] => [Math.round(c(t)[0]), Math.round(c(t)[1]), Math.round((i + 1) * f.rise * 100)])]
+    out.exit[f.base] = top
+    out.trigger[f.base] = [foot[0], foot[1], 75, unit(foot, c(f.treads[0]))]
+    out.down![up] = [top[0], top[1], 75, unit(top, c(f.treads[n - 1]))]
+    out.arrive[f.base] ??= { x: foot[0], y: foot[1], yaw: yawOf(unit(c(f.treads[0]), foot)) }
+    out.arrive[up] = { x: top[0], y: top[1], yaw: yawOf(d1) }
+    const pad = 110, z = (b: Box4): Box4 => [b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad]
+    const join = (a: Box4 | undefined, b: Box4): Box4 => (a ? [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])] : b)
+    out.zone[f.base] = join(out.zone[f.base] as Box4 | undefined, z(tb)); out.zone[up] = join(out.zone[up] as Box4 | undefined, z(f.box))
+    // nobody walks through the steps (below) or into the stairwell (above)
+    floors[f.base].rects.push(tb); floors[up].rects.push(f.box)
+  }
+  return out
+}
+
+/** The usual width and depth of a room made of tiles: the median extent across its rows and across its columns. */
+function typical(tiles: number[][]): [number, number] | null {
+  if (!tiles.length) return null
+  const median = (axis: 0 | 1) => {
+    const o = 1 - axis, cuts = [...new Set(tiles.flatMap(t => [t[o], t[o + 2]]))].sort((a, b) => a - b)
+    const strips: Array<{ len: number; weight: number }> = []
+    for (let i = 0; i + 1 < cuts.length; i++) {
+      const mid = (cuts[i] + cuts[i + 1]) / 2, hit = tiles.filter(t => mid > t[o] && mid < t[o + 2])
+      if (hit.length) strips.push({ len: Math.max(...hit.map(t => t[axis + 2])) - Math.min(...hit.map(t => t[axis])), weight: cuts[i + 1] - cuts[i] })
+    }
+    strips.sort((a, b) => a.len - b.len)
+    let half = strips.reduce((n, x) => n + x.weight, 0) / 2
+    for (const x of strips) { half -= x.weight; if (half <= 0) return x.len }
+    return strips[strips.length - 1]?.len ?? 0
+  }
+  return [median(0), median(1)]
 }
 
 /** Rectangles covering `tiles` and the wall-wide gaps between them (a closing on a 10 px lattice), minus `holes`. */

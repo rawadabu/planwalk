@@ -64,6 +64,8 @@ export const House = z.object({
     trigger: z.record(z.string(), z.tuple([z.number(), z.number(), z.number(), Pt.nullable()])),
     zone: z.record(z.string(), Rect),
     arrive: z.record(z.string(), z.object({ x: z.number(), y: z.number(), yaw: z.number() })),
+    // per storey: walking into this spot (x, y, radius, direction) starts the way DOWN (`trigger` is the way up)
+    down: z.record(z.string(), z.tuple([z.number(), z.number(), z.number(), Pt.nullable()])).optional(),
   }),
   canopies: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])),
   // the plot: which side the street is on, and — for a twin house — where the party wall is and on which side the

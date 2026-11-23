@@ -31,7 +31,8 @@ export function openings(L: PdfLayers, roles: Record<string, Role> = layerRoles(
 
   // 1. curves: tag bubbles (closed, round) and door swings (open quarter arcs)
   for (const s of subs) {
-    if (!s.curved) continue
+    // a swing is drawn as a real arc, or (by some CAD exports) as a many-point polyline along one
+    if (!s.curved && (s.closed || s.points.length < 7 || !onQuarterCircle(s.points))) continue
     const b = boxOf(s.points), w = b[2] - b[0], h = b[3] - b[1], a = s.points[0], e = s.points[s.points.length - 1]
     const ends = Math.hypot(a[0] - e[0], a[1] - e[1])
     if (ends < .2 * Math.max(w, h)) { if (Math.abs(w - h) < .25 * Math.max(w, h)) tags.push({ c: [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2], r: Math.max(w, h) / 2 }); continue }
@@ -84,4 +85,11 @@ export function openings(L: PdfLayers, roles: Record<string, Role> = layerRoles(
   return { openings: out, tags }
 }
 
+/** Do these points run along a quarter circle around one corner of their bounding box? */
+function onQuarterCircle(pts: Pt[]): boolean {
+  const b = boxOf(pts), w = b[2] - b[0], h = b[3] - b[1], r = Math.max(w, h)
+  if (r < 12 || Math.abs(w - h) > .15 * r) return false
+  const corners: Pt[] = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]]
+  return corners.some(c => pts.every(p => Math.abs(Math.hypot(p[0] - c[0], p[1] - c[1]) - r) < .06 * r))
+}
 const near = (pts: Pt[], p: Pt, tol = 2.5) => pts.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < tol)

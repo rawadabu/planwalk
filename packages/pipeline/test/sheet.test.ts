@@ -61,3 +61,42 @@ test('a quarter arc on the door layer is a hinged door with its hinge at the cen
   assert.equal(o.length, 1); assert.equal(o[0].kind, 'door')
   assert.ok(Math.hypot(o[0].hinge![0] - 100, o[0].hinge![1] - 100) < 1)
 })
+
+test('a swing drawn as a many-point polyline is a door too, and its leaf is not mistaken for a window', () => {
+  const arc: [number, number][] = []; for (let t = 0; t <= 12; t++) { const a = (Math.PI / 2) * t / 12; arc.push([100 + 30 * Math.cos(a), 100 + 30 * Math.sin(a)]) }
+  const sub = (points: [number, number][], closed = false) => ({ points, closed, curved: false })
+  const leaf: [number, number][] = [[98.7, 100], [100, 100], [100, 130], [98.7, 130]]                 // the open leaf, a thin rectangle from the hinge
+  const zig: [number, number][] = Array.from({ length: 12 }, (_, i) => [200 + i * 3, 200 + (i % 2) * 30])   // a polyline that is no arc
+  const path: Path = { layer: 'DOOR', paint: 'stroke', stroke: '#000000', fill: '#000000', width: .2, dashed: false, subs: [sub(arc), sub(leaf, true), sub(zig)] }
+  const o = openings({ width: 500, height: 500, layers: ['DOOR'], paths: [path] }).openings
+  assert.deepEqual(o.map(x => x.kind), ['door'])
+  assert.deepEqual(o[0].hinge, [100, 100]); assert.equal(o[0].axis, 'h')
+})
+
+test('an entrance named outside its door names the unnamed room behind it', () => {
+  // the 600 × 400 box with a door in its top wall (x 250–340); "מבואת כניסה" is written outside, above the door
+  const walls = [rect(0, 0, 250, 20), rect(340, 0, 600, 20), rect(0, 380, 600, 400), rect(0, 0, 20, 400), rect(580, 0, 600, 400)]
+  const door = { kind: 'door' as const, box: [250, -90, 340, 0] as [number, number, number, number], axis: 'h' as const, from: 250, to: 340, at: 10, hinge: [250, 10] as [number, number], ends: [[340, 10], [250, -80]] as [[number, number], [number, number]] }
+  const r = analyse(walls, [door], [], [label('מבואת כניסה', 300, -120)])
+  const indoor = r.rooms.filter(x => !x.outdoor)
+  assert.deepEqual(indoor.map(x => [x.name, x.from]), [['מבואת כניסה', 'label']])
+  assert.ok(!r.rooms.some(x => x.outdoor && x.name === 'מבואת כניסה'))
+})
+
+test('lines along the face of a wall are not an opening; glazing over a worktop is a window', () => {
+  const glass = (from: number, to: number, at: number) => ({ kind: 'glazing' as const, box: [from, at - 2, to, at + 2] as [number, number, number, number], axis: 'h' as const, from, to, at })
+  const walls = [rect(0, 0, 150, 20), rect(450, 0, 600, 20), rect(0, 0, 20, 400), rect(580, 0, 600, 400), rect(0, 380, 600, 400)]
+  const note = { text: 'כיור', kind: 'fixture' as const, box: [280, 40, 320, 52] as [number, number, number, number], size: 8 }
+  // a 3 m opening in the top wall with a sink under it; and shutter lines drawn outside the bottom wall
+  const r = analyse(walls, [glass(150, 450, 10), glass(200, 260, 404)], [], [label('מטבח', 300, 200), label('מרפסת', 300, -120), note])
+  assert.equal(r.openings.length, 1)
+  assert.equal(r.openings[0].kind, 'window'); assert.ok(r.openings[0].sill > 1)
+})
+
+test('a passage cut off from its name by a wall is its own space', () => {
+  // two names in one connected space; a stub room hangs off the kitchen side behind a wall, reachable only through it
+  const walls = [...shell, rect(290, 20, 310, 150), rect(290, 240, 310, 380), rect(430, 250, 580, 262), rect(430, 250, 442, 320)]
+  const r = analyse(walls, [], [], [label('סלון', 150, 200), label('מטבח', 450, 120)])
+  const indoor = r.rooms.filter(x => !x.outdoor)
+  assert.ok(indoor.length >= 2); assert.ok(indoor.every(x => x.area > 0))
+})

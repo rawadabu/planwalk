@@ -86,6 +86,7 @@ export default class Player {
     const cur = exp.state.floor, to = cur + dir
     if (to < 0 || to > 2) return
     const base = dir > 0 ? cur : to, step = this.stairs.step
+    if (!this.stairs.path[base] || !this.stairs.exit[base]) return          // no stair between these storeys
     const path = this.stairs.path[base].map(([x, y, s]) => ({ x, y, h: LEVEL[base] + s * step }))
     const [ex, ey] = this.stairs.exit[base]
     const exit = { x: ex, y: ey, h: LEVEL[base + 1] }, here = { x: this.p.x, y: this.p.y, h: LEVEL[cur] }
@@ -141,7 +142,13 @@ export default class Player {
       const T = this.stairs.trigger[cur]
       if (T) {
         const ddx = T[0] - p.x, ddy = T[1] - p.y, dist = Math.hypot(ddx, ddy), dir = T[3] || [ddx / (dist || 1), ddy / (dist || 1)]
-        if (dist < T[2] && (tvx * dir[0] + tvy * dir[1]) > 60) this.startClimb(cur === 2 ? -1 : 1)
+        if (dist < T[2] && (tvx * dir[0] + tvy * dir[1]) > 60) this.startClimb(cur === 2 && !this.stairs.down ? -1 : 1)
+      }
+      // …and walking into the top of the stair below goes down
+      const D = this.stairs.down?.[cur]
+      if (D && !this.climb) {
+        const ddx = D[0] - p.x, ddy = D[1] - p.y, dist = Math.hypot(ddx, ddy), dir = D[3] || [ddx / (dist || 1), ddy / (dist || 1)]
+        if (dist < D[2] && (tvx * dir[0] + tvy * dir[1]) > 60) this.startClimb(-1)
       }
     }
     const v = Math.hypot(p.vx, p.vy) * K
