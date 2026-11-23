@@ -9,9 +9,10 @@ export default class Furniture {
   constructor(world, resources) {
     this.meshes = []
     const byKey = new Map()
-    for (const it of world.house.items) {
+    // the house's own furniture, and the neighbourhood's models (houses, trees, cars) which live outdoors
+    for (const it of [...world.house.items, ...(world.neighbourhood?.models ?? [])]) {
       if (it.k !== 'model') continue
-      const k = it.name + '|' + it.f
+      const k = it.name + '|' + (it.outdoor ? 'out' : it.f)
       if (!byKey.has(k)) byKey.set(k, [])
       byKey.get(k).push(it)
     }
@@ -30,7 +31,7 @@ export default class Furniture {
         im.castShadow = im.receiveShadow = true
         im.computeBoundingSphere()
         im.name = 'model:' + name
-        world.groups.int[+f].add(im)
+        if (f === 'out') world.groups.outdoor.add(im); else world.groups.int[+f].add(im)
         this.meshes.push(im)
       }
     }

@@ -8,7 +8,10 @@ export default class Neighbourhood {
   [key: string]: any
   constructor(world) {
     const house = world.house, site = house.site
+    this.models = []                                     // placements for Furniture: { k: 'model', name, r, h, rot, f: 0, outdoor, uniform }
     if (!site) return
+    const have = (n: string) => !!world.experience.resources.items[n]
+    const place = (name: string, r: number[], h: number, rot: number) => this.models.push({ k: 'model', name, r, h, rot, f: 0, outdoor: true, uniform: true })
     const b = world.batcher, G = LEVEL[0]                 // ground = the ground storey's floor level
     let seed = 7; for (const c of house.id) seed = (seed * 31 + c.charCodeAt(0)) % 2147483647
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647), pick = (a: any[]) => a[Math.floor(rnd() * a.length)]
@@ -52,8 +55,11 @@ export default class Neighbourhood {
     box(pu1 - 3 * W - 2000, pv1 - WALK - ROAD, pu2 + 3 * W + 2000, pv1 - WALK, -.05, -.01, 'asphalt')
     box(pu1 - 3 * W - 2000, pv1 - WALK - ROAD - WALK, pu2 + 3 * W + 2000, pv1 - WALK - ROAD, -.05, .04, 'paver')
 
+    const TREES = ['nbTreeOlive', 'nbTreeFicus', 'nbTreeCypress'].filter(have)
     const tree = (u: number, v: number, s = 1) => {
-      const [x, y] = P(u, v), h = (2.4 + rnd() * 1.4) * s
+      const [x, y] = P(u, v)
+      if (TREES.length) { const name = pick(TREES), h = (name === 'nbTreeCypress' ? 8 : name === 'nbTreeFicus' ? 7 : 5) * (.85 + rnd() * .3) * s, w = name === 'nbTreeCypress' ? 220 : 560 * s; place(name, [x - w / 2, y - w / 2, x + w / 2, y + w / 2], h, rnd() * Math.PI * 2); return }
+      const h = (2.4 + rnd() * 1.4) * s
       b.box(x - 9, y - 9, x + 9, y + 9, 0, h, 'walnut')
       for (let i = 0; i < 4; i++) { const r = (1.1 + rnd() * .9) * s, g = new THREE.IcosahedronGeometry(r, 1); g.scale(1, .82, 1); g.translate(X(x + (rnd() - .5) * 140 * s), G + h + r * .5 + rnd() * .7, Z(y + (rnd() - .5) * 140 * s)); b.add(g, 'leaf') }
     }
@@ -64,7 +70,19 @@ export default class Neighbourhood {
     tree(pu1 + 150, depth + BACK - 220); tree(pu2 - 160, depth + BACK - 260, 1.15); tree(pu1 + 170, -FRONT + 170, .85)
 
     // a neighbouring house on the plot [a, a + W] × [v0, v0 + dir·…]; `dir` +1 builds away from our street, -1 across it
+    const HOUSES = ['nbHouseA', 'nbHouseB', 'nbHouseC'].filter(have)
+    const toStreet = (dir: number) => (alongX ? Math.atan2(0, -sign * dir) : Math.atan2(-sign * dir, 0))       // yaw facing its street
     const neighbour = (a: number, v0: number, dir: number) => {
+      if (HOUSES.length) {
+        const w = W * (.62 + rnd() * .12), d = 1000 + rnd() * 300, off = (W - w) * (.3 + rnd() * .4), set = 430 + rnd() * 140
+        const r = R(a + off, v0 + dir * set, a + off + w, v0 + dir * (set + d))
+        place(pick(HOUSES), r, 7 + rnd() * 2.5, toStreet(dir) + (rnd() < .5 ? 0 : Math.PI))
+        const back = v0 + dir * (set + d + 500)
+        hedge(a, Math.min(v0, back), a + 40, Math.max(v0, back)); hedge(a + W - 40, Math.min(v0, back), a + W, Math.max(v0, back))
+        tree(a + 120 + rnd() * (W - 240), v0 + dir * (set + d + 200 + rnd() * 200), .8 + rnd() * .5)
+        if (rnd() < .6) tree(a + 100 + rnd() * (W - 200), v0 + dir * (140 + rnd() * 140), .7 + rnd() * .3)
+        return
+      }
       const wall = pick(['wall', 'wall', 'plasterWarm', 'plasterGrey', 'stone']), n = rnd() < .4 ? 3 : 2
       const w = W * (.5 + rnd() * .2), d = 900 + rnd() * 420, off = (W - w) * (.3 + rnd() * .4), set = 420 + rnd() * 160
       const ua = a + off, ub = ua + w, va = v0 + dir * set, vb = va + dir * d
@@ -88,6 +106,13 @@ export default class Neighbourhood {
     for (const k of [-3, -2, -1, 1, 2, 3]) neighbour(pu1 + k * W, pv1, 1)
     for (const k of [-3, -2, -1, 0, 1, 2, 3]) neighbour(pu1 + k * W + W * .35, pv1 - WALK - ROAD - WALK, -1)
     for (const k of [-3, -2, -1, 0, 1, 2, 3]) neighbour(pu1 + k * W - W * .2, pv2 + 2600, -1)
+    // parked cars along both kerbs, street lamps on the far sidewalk
+    const CARS = ['nbCarSuv', 'nbCarSedan'].filter(have)
+    if (CARS.length) for (let u = pu1 - 2.5 * W; u < pu2 + 2.5 * W; u += 700 + rnd() * 900) {
+      const near = rnd() < .5, v = near ? pv1 - WALK - 120 : pv1 - WALK - ROAD + 120, r = R(u, v - 95, u + 450, v + 95)
+      place(pick(CARS), r, 1.6, (alongX ? Math.PI / 2 : 0) + (near ? 0 : Math.PI))
+    }
+    if (have('nbLamp')) for (let u = pu1 - 3 * W + 300; u < pu2 + 3 * W; u += 2200) { const [x, y] = P(u, pv1 - WALK - ROAD - WALK * .35); place('nbLamp', [x - 120, y - 120, x + 120, y + 120], 6, alongX ? 0 : Math.PI / 2) }
     // street trees
     for (let u = pu1 - 3 * W; u < pu2 + 3 * W; u += 900 + rnd() * 300) { tree(u, pv1 - WALK * .5, .75); tree(u + 400, pv1 - WALK - ROAD - WALK * .5, .75) }
   }

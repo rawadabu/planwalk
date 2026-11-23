@@ -3,7 +3,7 @@ import EventEmitter from './core/EventEmitter'
 import Sizes from './core/Sizes'
 import Time from './core/Time'
 import Resources from './core/Resources'
-import sources from './sources'
+import sources, { siteSources } from './sources'
 import Camera from './Camera'
 import Renderer from './Renderer'
 import World from './world/World'
@@ -41,7 +41,7 @@ export default class Experience extends EventEmitter {
     this.scene = new THREE.Scene()
     this.camera = new Camera()
     this.renderer = new Renderer()
-    this.resources = new Resources(sources(options.houseUrl, options.libraryUrl), this.renderer.instance, options.workerUrl)
+    this.resources = new Resources(sources(options.houseUrl, options.libraryUrl), this.renderer.instance, options.workerUrl, siteSources(options.libraryUrl))
     this.world = new World()
     this.player = new Player()
     this.measure = new Measure()

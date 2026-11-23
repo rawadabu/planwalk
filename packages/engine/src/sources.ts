@@ -34,3 +34,10 @@ export default function sources(houseUrl: string, lib: string): Source[] {
     { name: 'vase', type: 'model', path: lib + 'models/ceramic_vase_01.b64.json' },
   ]
 }
+
+/** Loaded only for a house that has surroundings (house.site): neighbouring houses, trees, cars, street lamps. */
+export function siteSources(lib: string): Source[] {
+  const m = (name: string, file: string): Source => ({ name, type: 'model', path: lib + 'models/' + file + '.b64.json' })
+  return [m('nbHouseA', 'nb_house_a'), m('nbHouseB', 'nb_house_b'), m('nbHouseC', 'nb_house_c'), m('nbTreeOlive', 'nb_tree_olive'), m('nbTreeFicus', 'nb_tree_ficus'),
+    m('nbTreeCypress', 'nb_tree_cypress'), m('nbCarSuv', 'nb_car_suv'), m('nbCarSedan', 'nb_car_sedan'), m('nbLamp', 'nb_lamp')]
+}
