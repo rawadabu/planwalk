@@ -1,5 +1,6 @@
 # Photoreal stills of a Planwalk house with Blender Cycles.
-# usage: python render.py house.glb views.json outdir [samples] [width] [only-view]
+# usage: python render.py house.glb views.json outdir [samples] [width] [only-view-id]
+# views.json: [{ id, name, pos: [x, y, z], target: [x, y, z], wide?, pano? }] in the viewer's world space (metres, y up)
 import bpy, json, math, sys, time, os
 from mathutils import Vector
 glb, views_path, out = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -31,9 +32,18 @@ print('objects', len(scene.objects), 'glass objects', glass, 'materials', len(bp
 
 # the ground outside: lawn as far as the eye sees
 gm = bpy.data.materials.new('lawn'); gm.use_nodes = True
-gb = next(n for n in gm.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'); gb.inputs['Base Color'].default_value = (0.13, 0.2, 0.07, 1); gb.inputs['Roughness'].default_value = 1
+gb = next(n for n in gm.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'); gb.inputs['Base Color'].default_value = (0.06, 0.11, 0.035, 1); gb.inputs['Roughness'].default_value = 1
 lo = min((o.matrix_world @ Vector(c)).z for o in scene.objects if o.type == 'MESH' for c in o.bound_box)
 bpy.ops.mesh.primitive_plane_add(size=600, location=(5, -8, min(lo, -3.05) - 0.01)); bpy.context.object.data.materials.append(gm)
+
+# a hedge around the plot hides the horizon
+hm = bpy.data.materials.new('hedge'); hm.use_nodes = True
+hb = next(n for n in hm.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'); hb.inputs['Base Color'].default_value = (0.035, 0.075, 0.03, 1); hb.inputs['Roughness'].default_value = 1
+xs = [(o.matrix_world @ Vector(c)) for o in scene.objects if o.type == 'MESH' and o.name != 'Plane' for c in o.bound_box]
+x1, x2, y1, y2 = min(v.x for v in xs) - 9, max(v.x for v in xs) + 9, min(v.y for v in xs) - 9, max(v.y for v in xs) + 9
+base = min(lo, -3.05)
+for cx, cy, sx, sy in (((x1 + x2) / 2, y1, x2 - x1, .8), ((x1 + x2) / 2, y2, x2 - x1, .8), (x1, (y1 + y2) / 2, .8, y2 - y1), (x2, (y1 + y2) / 2, .8, y2 - y1)):
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(cx, cy, base + 1.3)); h = bpy.context.object; h.scale = (sx, sy, 2.6); h.data.materials.append(hm)
 
 # daylight: physical sky with a sun
 world = bpy.data.worlds.new('sky'); scene.world = world; world.use_nodes = True
@@ -65,15 +75,16 @@ scene.render.image_settings.file_format = 'JPEG'; scene.render.image_settings.qu
 
 cam_data = bpy.data.cameras.new('cam'); cam = bpy.data.objects.new('cam', cam_data); scene.collection.objects.link(cam); scene.camera = cam
 for v in json.load(open(views_path)):
-    if only and v['name'] != only: continue
+    key = v.get('id', v['name'])
+    if only and key != only: continue
     pos, tgt = B(v['pos']), B(v['target'])
     cam.location = pos
     cam.rotation_euler = (tgt - pos).to_track_quat('-Z', 'Y').to_euler()
-    if v['name'] == 'pano':
+    if v.get('pano') or v['name'] == 'pano':
         cam_data.type = 'PANO'; cam_data.panorama_type = 'EQUIRECTANGULAR'
         scene.render.resolution_x = int(width * 1.6); scene.render.resolution_y = int(width * .8)
     else:
-        cam_data.type = 'PERSP'; cam_data.lens = 20; cam_data.sensor_width = 36
-        scene.render.resolution_x = width; scene.render.resolution_y = int(width * 9 / 16)
-    scene.render.filepath = os.path.join(out, v['name'] + '.jpg')
-    t = time.time(); bpy.ops.render.render(write_still=True); print('rendered', v['name'], round(time.time() - t), 's', flush=True)
+        cam_data.type = 'PERSP'; cam_data.lens = 15 if v.get('wide') else 19; cam_data.sensor_width = 36
+        scene.render.resolution_x = width; scene.render.resolution_y = int(width * 2 / 3)
+    scene.render.filepath = os.path.join(out, 'render_' + key + '.jpg')
+    t = time.time(); bpy.ops.render.render(write_still=True); print('rendered', key, round(time.time() - t), 's', flush=True)

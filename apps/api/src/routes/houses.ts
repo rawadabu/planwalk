@@ -10,7 +10,8 @@ import { can } from '../lib/permissions.js'
 import { storage } from '../lib/storage.js'
 
 const ID = /^[a-z0-9-]{1,64}$/
-const FILE = /^[a-z0-9_.-]{1,64}\.(png|jpg|webp)$/i
+const FILE = /^[a-z0-9_.-]{1,64}\.(png|jpg|webp|svg)$/i
+const TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', svg: 'image/svg+xml' }
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex')
 
 /** A share link that is valid right now, by raw token. */
@@ -82,7 +83,19 @@ export async function houseRoutes(app: FastifyInstance) {
     const key = `houses/${id}/${file}`
     if (!(await storage.exists(key))) return deny(reply)
     reply.header('cache-control', h.public ? 'public, max-age=3600' : 'private, max-age=600')
-    return reply.type(file.endsWith('.png') ? 'image/png' : file.endsWith('.webp') ? 'image/webp' : 'image/jpeg').send(await storage.read(key))
+    // an SVG is only ever shown in <img>; the CSP keeps it inert if opened directly
+    if (file.toLowerCase().endsWith('.svg')) reply.header('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+    return reply.type(TYPES[file.split('.').pop()!.toLowerCase()] ?? 'application/octet-stream').send(await storage.read(key))
+  })
+
+  // The photoreal gallery (rendered offline): the list of images, or an empty list when none were rendered yet
+  app.get<{ Params: { id: string } }>('/api/houses/:id/renders', async (req, reply) => {
+    if (!ID.test(req.params.id)) return reply.code(400).send({ error: 'bad path' })
+    const h = await canView(req, req.params.id); if (!h) return deny(reply)
+    const key = `houses/${req.params.id}/renders.json`
+    if (!(await storage.exists(key))) return []
+    const list = JSON.parse((await storage.read(key)).toString('utf8')) as Array<{ id: string; name: string; storey: number; file: string }>
+    return list.filter(r => FILE.test(r.file)).map(({ id, name, storey, file }) => ({ id, name, storey, file }))
   })
 
   // What the viewer needs besides the geometry: location for the real sun, and what this visitor may do

@@ -6,6 +6,7 @@ import { Toolbar } from '../viewer/Toolbar'
 import { MeasureLabel } from '../viewer/MeasureLabel'
 import { Joystick } from '../viewer/Joystick'
 import { AreasPanel } from '../viewer/Areas'
+import { GalleryPanel } from '../viewer/Gallery'
 import { DesignPanel, newDesignSession } from '../viewer/DesignPanel'
 import { KitchenPanel } from '../viewer/KitchenPanel'
 import { CostPanel } from '../viewer/Cost'
@@ -79,6 +80,7 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
           {touring && <Tour viewer={viewer} house={shown!} onEnd={() => setTouring(false)} />}
           {drawer === 'cost' && <CostPanel house={ui.house} houseId={houseId} design={design.current.doc.design} prices={meta?.prices as never} onClose={() => setDrawer(null)} />}
           {drawer === 'areas' && <AreasPanel house={shown!} floor={ui.floor} onClose={() => setDrawer(null)} />}
+          {drawer === 'photos' && <GalleryPanel houseId={houseId} share={share} onClose={() => setDrawer(null)} />}
           {drawer === 'sun' && meta && <SunPanel viewer={viewer} meta={meta} onClose={() => setDrawer(null)} />}
           {drawer === 'comments' && meta && <CommentsPanel viewer={viewer} house={ui.house} houseId={houseId} share={share} meta={meta} floor={ui.floor} state={comments} selected={selected} setSelected={setSelected} onClose={() => setDrawer(null)} />}
           <Toolbar viewer={viewer} ui={ui} measuring={measuring} setMeasuring={setMeasuring} drawer={drawer} setDrawer={d => { setDrawer(d); setMoreOpen(false) }} commentCount={openCount} onTour={() => { setDrawer(null); setTouring(true); setMoreOpen(false) }} open={moreOpen} />

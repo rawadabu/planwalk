@@ -1,5 +1,7 @@
 // Static demo build (npm run build:demo): no server, files next to index.html, hash routes.
 export const STATIC = import.meta.env.VITE_STATIC === '1'
+/** One photoreal image of the house (rendered offline with Blender). */
+export interface Render { id: string; name: string; storey: number; file: string }
 // Typed client for the Planwalk API. Same-origin (/api), cookies carry the session.
 export type ProjectKind = 'development' | 'private'
 export type UnitStatus = 'available' | 'reserved' | 'sold'
@@ -67,6 +69,7 @@ export const api = {
   deleteDesign: (id: string) => req<void>(`/api/designs/${id}`, { method: 'DELETE' }),
   orgPrices: (org: string) => req<{ defaults: any; prices: any; updatedAt: string | null; canEdit: boolean }>(`/api/orgs/${org}/prices`),
   saveOrgPrices: (org: string, prices: unknown) => req<{ prices: any; updatedAt: string }>(`/api/orgs/${org}/prices`, json('PUT', prices)),
+  renders: (id: string, share?: string) => (STATIC ? fetch(`./houses/${id}/renders.json`).then(r => (r.ok ? r.json() : [])).catch(() => []) : req<Render[]>(`/api/houses/${id}/renders`, shareHdr(share))) as Promise<Render[]>,
   houseUrl: (id: string, share?: string) => STATIC ? `./houses/${id}/house.json` : `/api/houses/${id}/house.json${share ? `?share=${encodeURIComponent(share)}` : ''}`,
   houseFile: (id: string, file: string, share?: string) => STATIC ? `./houses/${id}/${file}` : `/api/houses/${id}/${file}${share ? `?share=${encodeURIComponent(share)}` : ''}`,
   libraryUrl: STATIC ? './library/' : '/api/library/',

@@ -4,6 +4,7 @@ import { createCanvas } from '@napi-rs/canvas'
 import { readLayers } from '../src/pdf'
 import { understand } from '../src/sheet'
 import { toHouse } from '../src/tohouse'
+import { roomViews, toWorld } from '../src/views'
 const [, , file, readings, out] = process.argv
 mkdirSync(out, { recursive: true })
 const L = await readLayers(new Uint8Array(readFileSync(file)))
@@ -12,7 +13,7 @@ const t = Date.now(), plan = understand(L, read)
 console.log('ms', Date.now() - t, JSON.stringify(plan.scale), plan.warnings)
 writeFileSync(`${out}/plan.json`, JSON.stringify({ ...plan, storeys: plan.storeys.map(({ strokes, ...s }) => s) }))
 const built = toHouse(plan, { id: process.argv[5] ?? 'auto', file: 'plan.pdf' })
-writeFileSync(`${out}/house.json`, JSON.stringify(built.house)); for (const [k, v] of Object.entries(built.maps)) writeFileSync(`${out}/${k}`, v)
+writeFileSync(`${out}/house.json`, JSON.stringify(built.house)); writeFileSync(`${out}/views.json`, JSON.stringify(roomViews(plan, built.house).map(v => toWorld(v)), null, 1)); for (const [k, v] of Object.entries(built.maps)) writeFileSync(`${out}/${k}`, v)
 const pal = ['#fde68a', '#bfdbfe', '#bbf7d0', '#fecaca', '#ddd6fe', '#fed7aa', '#a5f3fc', '#f5d0fe', '#d9f99d', '#e2e8f0', '#fecdd3', '#c7d2fe']
 for (const s of plan.storeys) {
   console.log(`\nstorey ${s.storey} "${s.title}" drawing ${s.drawing} ${s.side} match ${s.match}`)

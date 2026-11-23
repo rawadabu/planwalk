@@ -2,6 +2,7 @@ import type { House, Floor, Item, StoreyId } from '@planwalk/house'
 import { PX_PER_M, type Plan, type PlanStorey } from './sheet'
 import type { Poly } from './plan'
 import { furnish, paved } from './content'
+import { Grid, close } from './raster'
 
 /** plan@1 → house@1 (what the viewer walks through) plus one minimap SVG per storey. */
 export interface HouseOptions { id?: string; title?: string; file?: string }
@@ -29,12 +30,13 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
       rooms: [...indoor.map(tuple), ...rest.map(tuple), ['חוץ', '', -9999, -9999, 99999, 99999]], indoor: indoor.length, rects: [],
     }
     maps[map] = svg(st)
-    for (const r of indoor) for (const t of r.tiles) {
-      items.push({ k: 'box', f: s, layer: 'arch', r: t, y: [-.02, 0], m: 'floor' })
-      if (s > 0) items.push({ k: 'box', f: s, layer: 'arch', r: t, y: [-.25, -.02], m: 'ceil' })
-    }
-    // the roof covers every indoor space of the top storey, the double-height one included
-    if (s === top) for (const r of [...indoor, ...st.rooms.filter(r => r.void)]) for (const t of r.tiles) items.push({ k: 'box', f: s, layer: 'roof', r: [t[0] - 12, t[1] - 12, t[2] + 12, t[3] + 12], y: [H, H + .3], m: 'ceil' })
+    for (const r of indoor) for (const t of r.tiles) items.push({ k: 'box', f: s, layer: 'arch', r: t, y: [-.02, 0], m: 'floor' })
+    // the structural slab under this storey: one continuous plate under rooms and the walls between them, open only
+    // at the double-height space and the stairwell
+    const holes = [...st.rooms.filter(r => r.void).flatMap(r => r.tiles), ...st.stairs.map(x => x.box)]
+    if (s > 0) for (const t of plate(indoor.flatMap(r => r.tiles), holes)) items.push({ k: 'box', f: s, layer: 'arch', r: t, y: [-.25, -.02], m: 'ceil' })
+    // the roof covers the whole top storey: rooms, walls, the double-height space and the stairwell
+    if (s === top) for (const t of plate([...indoor.flatMap(r => r.tiles), ...holes], [])) items.push({ k: 'box', f: s, layer: 'roof', r: [t[0] - 12, t[1] - 12, t[2] + 12, t[3] + 12], y: [H, H + .3], m: 'ceil' })
     for (const o of st.openings) if (o.kind === 'door') items.push({ k: 'opening', f: s, r: o.rect, head: o.head })
     for (const t of furnish(st)) items.push({ ...t, f: s } as Item)
     for (const b of paved(st)) items.push({ k: 'box', f: s, layer: 'outdoor', r: b.map(Math.round) as Box4, y: s > 0 ? [-.2, 0] : [-.04, .005], m: 'deck' })
@@ -61,6 +63,30 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
     stairs: { step: .175, path: {}, exit: {}, trigger: {}, zone: {}, arrive: {} }, canopies: [], items,
   }
   return { house, maps, warnings }
+}
+
+/** Rectangles covering `tiles` and the wall-wide gaps between them (a closing on a 10 px lattice), minus `holes`. */
+function plate(tiles: number[][], holes: number[][]): Box4[] {
+  if (!tiles.length) return []
+  const Q = 10, x0 = Math.min(...tiles.map(t => t[0])) - 4 * Q, y0 = Math.min(...tiles.map(t => t[1])) - 4 * Q
+  const g = new Grid(Math.ceil((Math.max(...tiles.map(t => t[2])) - x0) / Q) + 4, Math.ceil((Math.max(...tiles.map(t => t[3])) - y0) / Q) + 4, Q, x0, y0)
+  for (const t of tiles) g.fill([[t[0], t[1]], [t[2], t[1]], [t[2], t[3]], [t[0], t[3]]])
+  const m = close(g, 3)                                               // bridges gaps up to ~50 cm: the walls
+  const cut = g.like(); for (const t of holes) cut.fill([[t[0] + Q, t[1] + Q], [t[2] - Q, t[1] + Q], [t[2] - Q, t[3] - Q], [t[0] + Q, t[3] - Q]])
+  const out: Box4[] = [], open = new Map<string, Box4>()
+  for (let j = 0; j <= m.h; j++) {
+    const seen = new Set<string>()
+    for (let i = 0; i < m.w && j < m.h;) {
+      const on = (ii: number) => m.a[j * m.w + ii] === 1 && !cut.a[j * m.w + ii]
+      if (!on(i)) { i++; continue }
+      let e = i; while (e < m.w && on(e)) e++
+      const key = `${i}:${e}`; seen.add(key)
+      const b = open.get(key); if (b) b[3] = y0 + (j + 1) * Q; else open.set(key, [x0 + i * Q, y0 + j * Q, x0 + e * Q, y0 + (j + 1) * Q])
+      i = e
+    }
+    for (const [key, b] of open) if (!seen.has(key)) { out.push(b); open.delete(key) }
+  }
+  return out
 }
 
 /** Minimap: rooms tinted with their names, walls in ink, glazing in blue. */
