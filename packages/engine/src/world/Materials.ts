@@ -71,12 +71,13 @@ export default class Materials {
       soil: std({ color: 0x3b2e24, roughness: 1 }),
       stone: std({ color: 0xd8d0c3, roughness: .85 }),
       deck: std({ color: 0xc9bca9, roughness: .8 }),
-      paver: std({ color: 0xb7aea1, roughness: .9 }),
-      grass: std({ color: 0x8aa863, roughness: 1 }),
-      asphalt: std({ color: 0x3d3f43, roughness: .95 }),
+      paver: std(t.paverDiff ? { map: t.paverDiff, color: 0xe8e2d8, roughness: .9 } : { color: 0xb7aea1, roughness: .9 }),
+      grass: std(t.grassDiff ? { map: t.grassDiff, color: 0xb9cc9a, roughness: 1 } : { color: 0x8aa863, roughness: 1 }),
+      asphalt: std(t.asphaltDiff ? { map: t.asphaltDiff, color: 0x9a9a9a, roughness: .95 } : { color: 0x3d3f43, roughness: .95 }),
       plasterWarm: std({ color: 0xe3d4bd, roughness: .95 }),
       plasterGrey: std({ color: 0xcfcbc4, roughness: .95 }),
       leaf: std({ color: 0x4d6b38, roughness: .9 }),
+      hedge: std(t.grassDiff ? { map: t.grassDiff, color: 0x5f7a45, roughness: 1 } : { color: 0x55703e, roughness: .9 }),
       // glass: 'simple' is a cheap transparent pane; 'physical' uses transmission (one extra scene render per frame)
       glassSimple: new THREE.MeshPhysicalMaterial({ color: 0xdfeef6, transparent: true, opacity: .14, roughness: .03, metalness: 0, envMapIntensity: 1.2, depthWrite: false }),
       glassPhysical: new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, roughness: .02, thickness: .01, ior: 1.5 }),
@@ -87,7 +88,7 @@ export default class Materials {
       ledStrip: std({ color: 0x000000, emissive: 0xffc98f, emissiveIntensity: 3.5 }),
     }
     this.list.glass = this.list.glassSimple
-    this.uvSize = { floor: this.FLOOR_TILE_M, wall: 2, oak: 1.2, walnut: 1, quartz: 2.4, rug: 1.2, fabric: .6, fabricD: .6, deck: 1 }
+    this.uvSize = { floor: this.FLOOR_TILE_M, wall: 2, oak: 1.2, walnut: 1, quartz: 2.4, rug: 1.2, fabric: .6, fabricD: .6, deck: 1, grass: 3, asphalt: 4, paver: 2.5, hedge: 1.6 }
     this.shadowless = new Set(['glass', 'railGlass', 'lightDisc', 'ringLed', 'ledStrip', 'flame', 'rug'])
   }
   get(key) { return this.list[key] }

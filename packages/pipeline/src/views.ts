@@ -52,7 +52,7 @@ export function roomViews(plan: Plan, house: House): RoomView[] {
       // outwards = away from the middle of the house, along the stronger axis
       const dx = room.at[0] - cx, dy = room.at[1] - cy, ax = Math.abs(dx) * (by2 - by1) > Math.abs(dy) * (bx2 - bx1)
       const dir: [number, number] = ax ? [Math.sign(dx), 0] : [0, Math.sign(dy)]
-      out.push({ id: `f${st.storey}-${out.length}`, name: `נוף מה${room.name}`, storey: st.storey, pos: [Math.round(room.at[0] - dir[0] * 60), Math.round(room.at[1] - dir[1] * 60)], target: [Math.round(room.at[0] + dir[0] * 1500), Math.round(room.at[1] + dir[1] * 1500)], area: room.area, wide: false, heights: [1.6, .4] })
+      out.push({ id: `f${st.storey}-${out.length}`, name: `נוף מה${room.name}`, storey: st.storey, pos: [Math.round(room.at[0] - dir[0] * 130), Math.round(room.at[1] - dir[1] * 130)], target: [Math.round(room.at[0] + dir[0] * 1500), Math.round(room.at[1] + dir[1] * 1500)], area: room.area, wide: false, heights: [1.65, 1.0] })
     }
   }
   // from outside: the street front and the garden side, from above head height like a drone

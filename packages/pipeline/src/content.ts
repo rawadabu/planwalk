@@ -250,3 +250,45 @@ export function paved(st: PlanStorey): Box[] {
   }
   return out.filter(b => (b[2] - b[0]) * (b[3] - b[1]) >= 2500)
 }
+
+/**
+ * Balcony railings: the edges of a paved outdoor floor that meet neither a wall, a window, nor a room — the open
+ * drop. Returned as thin boxes (house px); the caller builds glass with a rail on them.
+ */
+export function balconyRails(st: PlanStorey, pavedRects: Box[]): Box[] {
+  if (!pavedRects.length) return []
+  const Q = 10
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity
+  for (const r of pavedRects) { x1 = Math.min(x1, r[0]); y1 = Math.min(y1, r[1]); x2 = Math.max(x2, r[2]); y2 = Math.max(y2, r[3]) }
+  const ox = x1 - 2 * Q, oy = y1 - 2 * Q, w = Math.ceil((x2 - x1) / Q) + 4, h = Math.ceil((y2 - y1) / Q) + 4
+  const inRects = (rs: number[][], x: number, y: number) => rs.some(r => x >= r[0] && x < r[2] && y >= r[1] && y < r[3])
+  const inPoly = (p: number[][], x: number, y: number) => { let c = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) if ((p[i][1] > y) !== (p[j][1] > y) && x < (p[j][0] - p[i][0]) * (y - p[i][1]) / (p[j][1] - p[i][1]) + p[i][0]) c = !c; return c }
+  const indoor = st.rooms.filter(r => !r.outdoor).flatMap(r => r.tiles), glass = st.openings.map(o => o.rect), stairs = st.stairs.map(x => x.box)
+  // 1 paved, 2 solid (wall, window, room, stair): a railing stands where paved meets neither
+  const cell = new Uint8Array(w * h)
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    const cx = ox + (i + .5) * Q, cy = oy + (j + .5) * Q
+    const solid = inRects(indoor, cx, cy) || inRects(glass, cx, cy) || inRects(stairs, cx, cy) || [[0, 0], [-4, -4], [4, -4], [-4, 4], [4, 4]].some(([dx, dy]) => st.walls.some(p => inPoly(p, cx + dx, cy + dy)))
+    cell[j * w + i] = solid ? 2 : inRects(pavedRects, cx, cy) ? 1 : 0
+  }
+  const at = (i: number, j: number) => (i < 0 || j < 0 || i >= w || j >= h ? 0 : cell[j * w + i])
+  // edges, each with the side its floor is on (+1: floor at larger coordinate)
+  type Edge = { o: 'h' | 'v'; at: number; lo: number; hi: number; side: number }
+  const edges: Edge[] = []
+  for (let j = 0; j <= h; j++) for (let i = 0, run = -1, side = 0; i <= w; i++) {
+    const a = at(i, j - 1), b = at(i, j), sd = i < w && a === 1 && b === 0 ? -1 : i < w && a === 0 && b === 1 ? 1 : 0
+    if (sd !== side && run >= 0) { if ((i - run) * Q >= 60) edges.push({ o: 'h', at: oy + j * Q, lo: ox + run * Q, hi: ox + i * Q, side }); run = -1 }
+    if (sd !== 0 && run < 0) run = i
+    side = sd
+  }
+  for (let i = 0; i <= w; i++) for (let j = 0, run = -1, side = 0; j <= h; j++) {
+    const a = at(i - 1, j), b = at(i, j), sd = j < h && a === 1 && b === 0 ? -1 : j < h && a === 0 && b === 1 ? 1 : 0
+    if (sd !== side && run >= 0) { if ((j - run) * Q >= 60) edges.push({ o: 'v', at: ox + i * Q, lo: oy + run * Q, hi: oy + j * Q, side }); run = -1 }
+    if (sd !== 0 && run < 0) run = j
+    side = sd
+  }
+  // a ragged floor edge gives several parallel steps: keep only the outermost of those within a metre of each other
+  const keep = edges.filter(e => !edges.some(f => f !== e && f.o === e.o && f.side === e.side && (f.at - e.at) * e.side < 0 && Math.abs(f.at - e.at) <= 100 && Math.min(f.hi, e.hi) - Math.max(f.lo, e.lo) > .4 * (e.hi - e.lo)))
+  const out: Box[] = keep.map(e => (e.o === 'h' ? [e.lo, e.at - 3, e.hi, e.at + 3] : [e.at - 3, e.lo, e.at + 3, e.hi]))
+  return out
+}

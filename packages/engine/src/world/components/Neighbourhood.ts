@@ -27,11 +27,8 @@ export default class Neighbourhood {
         const fl = house.floors[f]; if (!fl.walls.length) continue
         b.at('outdoor', 0, LEVEL[f])
         b.extrude(fl.walls.map(p => [...p].reverse().map(([x, y]) => [mx(x), y])), 0, H, 'wall')
-        for (const [x1, y1, x2, y2, sill, head] of fl.glass) {
-          const r = [mx(x2), y1, mx(x1), y2]
-          if (sill > 0) b.box(r[0], r[1], r[2], r[3], 0, sill, 'wall'); b.box(r[0], r[1], r[2], r[3], head, H, 'wall')
-          b.box(r[0], r[1], r[2], r[3], sill, head, 'blackGlass')
-        }
+        // the same windows as this unit: frames, mullions and glass
+        world.architecture._glazing(b, fl.glass.map(([x1, y1, x2, y2, sill, head]) => [mx(x2), y1, mx(x1), y2, sill, head]))
         // floor plate and roof of the twin, from this unit's indoor rooms mirrored
         for (const rm of fl.rooms.slice(0, fl.indoor)) { b.box(mx(rm[4]), rm[3], mx(rm[2]), rm[5], -.25, 0, 'ceil'); if (f === 2) b.box(mx(rm[4]) - 12, rm[3] - 12, mx(rm[2]) + 12, rm[5] + 12, H, H + .3, 'ceil') }
       }
@@ -63,7 +60,7 @@ export default class Neighbourhood {
       b.box(x - 9, y - 9, x + 9, y + 9, 0, h, 'walnut')
       for (let i = 0; i < 4; i++) { const r = (1.1 + rnd() * .9) * s, g = new THREE.IcosahedronGeometry(r, 1); g.scale(1, .82, 1); g.translate(X(x + (rnd() - .5) * 140 * s), G + h + r * .5 + rnd() * .7, Z(y + (rnd() - .5) * 140 * s)); b.add(g, 'leaf') }
     }
-    const hedge = (ua: number, va: number, ub: number, vb: number, h = 1.5) => box(ua, va, ub, vb, 0, h, 'plant')
+    const hedge = (ua: number, va: number, ub: number, vb: number, h = 1.5) => box(ua, va, ub, vb, 0, h, 'hedge')
 
     // this plot: hedges on the sides and the back, trees in the garden
     hedge(pu1, pv1, pu1 + 45, pv2); hedge(pu2 - 45, pv1, pu2, pv2); hedge(pu1, pv2 - 45, pu2, pv2)

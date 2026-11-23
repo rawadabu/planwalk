@@ -1,7 +1,7 @@
 import type { House, Floor, Item, StoreyId } from '@planwalk/house'
 import { PX_PER_M, type Plan, type PlanStorey } from './sheet'
 import type { Poly } from './plan'
-import { furnish, paved } from './content'
+import { furnish, paved, balconyRails } from './content'
 import { Grid, close } from './raster'
 
 /** plan@1 → house@1 (what the viewer walks through) plus one minimap SVG per storey. */
@@ -39,7 +39,10 @@ export function toHouse(plan: Plan, opts: HouseOptions = {}): { house: House; ma
     if (s === top) for (const t of plate([...indoor.flatMap(r => r.tiles), ...holes], [])) items.push({ k: 'box', f: s, layer: 'roof', r: [t[0] - 12, t[1] - 12, t[2] + 12, t[3] + 12], y: [H, H + .3], m: 'ceil' })
     for (const o of st.openings) if (o.kind === 'door') items.push({ k: 'opening', f: s, r: o.rect, head: o.head })
     for (const t of furnish(st)) items.push({ ...t, f: s } as Item)
-    for (const b of paved(st)) items.push({ k: 'box', f: s, layer: 'outdoor', r: b.map(Math.round) as Box4, y: s > 0 ? [-.2, 0] : [-.04, .005], m: 'deck' })
+    const terrace = paved(st)
+    for (const b of terrace) items.push({ k: 'box', f: s, layer: 'outdoor', r: b.map(Math.round) as Box4, y: s > 0 ? [-.2, 0] : [-.04, .005], m: 'deck' })
+    // upper-storey balconies get a glass railing along their open edges
+    if (s > 0) for (const r of balconyRails(st, terrace)) { const b = r.map(Math.round) as Box4; items.push({ k: 'box', f: s, layer: 'outdoor', r: b, y: [.02, 1.05], m: 'railGlass' }, { k: 'box', f: s, layer: 'outdoor', r: b, y: [1.05, 1.09], m: 'metal' }) }
     // railings: glass with a metal rail
     for (const r of st.railings) { const b: [number, number, number, number] = [Math.round(r[0] - 1), Math.round(r[1] - 1), Math.round(r[2] + 1), Math.round(r[3] + 1)]; items.push({ k: 'box', f: s, layer: 'int', r: b, y: [.05, 1], m: 'railGlass' }, { k: 'box', f: s, layer: 'int', r: b, y: [1, 1.04], m: 'metal' }) }
     // the stair up from this storey: drawn complete on the storey above; the bottom steps may only show here
