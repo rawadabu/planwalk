@@ -50,6 +50,13 @@
       "when": 1795520000000,
       "tag": "0006_plan_versions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795530000000,
+      "tag": "0007_design_brief",
+      "breakpoints": true
     }
   ]
 }

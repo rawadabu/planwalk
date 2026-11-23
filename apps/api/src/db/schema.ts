@@ -261,3 +261,11 @@ export const houseSeen = pgTable('house_seen', {
   version: integer('version').notNull(),
   seenAt: timestamp('seen_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.houseId, t.userId] })])
+
+/** What a home's owners answered in the design questionnaire (the first design is made from it). One per person and house. */
+export const designBrief = pgTable('design_brief', {
+  houseId: text('house_id').notNull().references(() => house.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  data: jsonb('data').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.houseId, t.userId] })])

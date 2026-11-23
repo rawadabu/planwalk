@@ -2,10 +2,10 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { randomUUID } from 'node:crypto'
 import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { Design, emptyDesign, validate } from '@planwalk/design'
+import { Design, emptyDesign, parseBrief, validate } from '@planwalk/design'
 import { parseHouse } from '@planwalk/house'
 import { db } from '../db/client.js'
-import { design, designRevision, house, project, user } from '../db/schema.js'
+import { design, designBrief, designRevision, house, project, user } from '../db/schema.js'
 import { requireUser, projectRole } from '../lib/guard.js'
 import { can } from '../lib/permissions.js'
 import { storage } from '../lib/storage.js'
@@ -37,6 +37,28 @@ async function check(houseId: string, data: unknown) {
 const view = (d: typeof design.$inferSelect, extra: object = {}) => ({ id: d.id, houseId: d.houseId, name: d.name, data: d.data, version: d.version, updatedAt: d.updatedAt, ...extra })
 
 export async function designRoutes(app: FastifyInstance) {
+  // ── the design questionnaire: one set of answers per person and house ──
+  app.get<{ Params: { id: string } }>('/api/houses/:id/brief', async (req, reply) => {
+    const ctx = await houseRole(req, reply, req.params.id); if (!ctx) return
+    const [row] = await db.select().from(designBrief).where(and(eq(designBrief.houseId, ctx.house.id), eq(designBrief.userId, ctx.session.user.id))).limit(1)
+    return { brief: row ? parseBrief(row.data) : null, updatedAt: row?.updatedAt ?? null }
+  })
+  app.put<{ Params: { id: string } }>('/api/houses/:id/brief', async (req, reply) => {
+    const ctx = await houseRole(req, reply, req.params.id); if (!ctx) return
+    if (!can(ctx.role, 'design', 'create')) return deny(reply, ctx.role, 'create')
+    const brief = parseBrief(req.body)
+    await db.insert(designBrief).values({ houseId: ctx.house.id, userId: ctx.session.user.id, data: brief })
+      .onConflictDoUpdate({ target: [designBrief.houseId, designBrief.userId], set: { data: brief, updatedAt: new Date() } })
+    return { brief }
+  })
+  // the studio reads what its clients answered
+  app.get<{ Params: { id: string } }>('/api/houses/:id/briefs', async (req, reply) => {
+    const ctx = await houseRole(req, reply, req.params.id); if (!ctx) return
+    if (ctx.role === 'client') return reply.code(403).send({ error: "Clients see their own answers only" })
+    const rows = await db.select({ name: user.name, data: designBrief.data, updatedAt: designBrief.updatedAt }).from(designBrief).leftJoin(user, eq(user.id, designBrief.userId)).where(eq(designBrief.houseId, ctx.house.id)).orderBy(desc(designBrief.updatedAt))
+    return rows.map(r => ({ name: r.name, brief: parseBrief(r.data), updatedAt: r.updatedAt }))
+  })
+
   app.get<{ Params: { id: string } }>('/api/houses/:id/designs', async (req, reply) => {
     const ctx = await houseRole(req, reply, req.params.id); if (!ctx) return
     const rows = await db.select({ id: design.id, name: design.name, version: design.version, updatedAt: design.updatedAt, updatedBy: user.name })

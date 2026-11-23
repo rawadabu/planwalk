@@ -11,6 +11,7 @@ import { DesignPanel, newDesignSession, renderDesign } from '../viewer/DesignPan
 import { SendPanel } from '../viewer/Send'
 import { VersionsPanel } from '../viewer/Versions'
 import { FurnishPanel } from '../viewer/Furnish'
+import { BriefPanel, storedBrief } from '../viewer/Brief'
 import { KitchenPanel } from '../viewer/KitchenPanel'
 import { CostPanel } from '../viewer/Cost'
 import { Tour } from '../viewer/Tour'
@@ -53,6 +54,7 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
   }, [viewer, measuring, touring, drawer, ui.mode, ui.floor])
   const openCount = comments.list.filter(c => !c.parentId && !c.resolved).length
   // a client comes back to their own choices; the architect opens a client's design from the feedback report (?design=)
+  const asked = useRef(false)
   const [query] = useSearchParams(), wanted = query.get('design'), isClient = meta?.viewer.role === 'client'
   const base = ui.house
   useEffect(() => {
@@ -60,6 +62,8 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
     let off = false
     ;(async () => {
       const id = wanted ?? (isClient ? (await api.designs(houseId)).designs[0]?.id : null)
+      // a client's first visit: nothing chosen yet, so the questionnaire comes first
+      if (!id && isClient && !off && !asked.current) { asked.current = true; setDrawer(d => d ?? 'brief') }
       if (!id || off) return
       const d = await api.design(id); if (off || design.current.active) return
       design.current.doc.reset(d.data as Design); design.current.active = { id: d.id, name: d.name, version: d.version }
@@ -72,6 +76,8 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
   const [unseen, setUnseen] = useState(false), announced = useRef(false)
   useEffect(() => { setUnseen(!!meta?.version?.unseen) }, [meta])
   useEffect(() => { if (viewer && base && meta?.version?.unseen && !announced.current) { announced.current = true; setDrawer('versions') } }, [viewer, base, meta])
+  // the static demo opens with the questionnaire once, so the house is not shown empty
+  useEffect(() => { if (STATIC && viewer && base && !asked.current && !storedBrief(houseId)) { asked.current = true; setDrawer(d => d ?? 'brief') } }, [viewer, base, houseId])
   const myNotes = comments.list.filter(c => !c.parentId && !c.resolved && c.mine).length
 
   return (
@@ -102,6 +108,7 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
           {drawer === 'design' && meta && <DesignPanel viewer={viewer} house={ui.house} houseId={houseId} meta={meta} floor={ui.floor} onClose={() => setDrawer(null)} onHouse={setEdited} session={design.current} onCost={() => setDrawer('cost')} />}
           {drawer === 'kitchen' && <KitchenPanel viewer={viewer} house={ui.house} houseId={houseId} prices={meta?.prices} session={design.current} onHouse={setEdited} onClose={() => setDrawer(null)} onCost={() => setDrawer('cost')} />}
           {drawer === 'furnish' && <FurnishPanel viewer={viewer} house={ui.house} floor={ui.floor} session={design.current} onHouse={setEdited} onClose={() => setDrawer(null)} onChanged={() => bump(n => n + 1)} />}
+          {drawer === 'brief' && <BriefPanel viewer={viewer} house={ui.house} houseId={houseId} meta={meta} session={design.current} onHouse={setEdited} onClose={() => setDrawer(null)} onChanged={() => bump(n => n + 1)} />}
           {drawer === 'styles' && <StylesBar viewer={viewer} house={ui.house} session={design.current} prices={meta?.prices} onHouse={setEdited} onClose={() => setDrawer(null)} onChanged={() => bump(n => n + 1)} />}
           {touring && <Tour viewer={viewer} house={shown!} onEnd={() => setTouring(false)} />}
           {drawer === 'cost' && <CostPanel house={ui.house} houseId={houseId} design={design.current.doc.design} prices={meta?.prices as never} onClose={() => setDrawer(null)} />}

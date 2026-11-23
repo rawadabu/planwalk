@@ -303,3 +303,26 @@
 .drawer.furnish .removed{margin:0;padding:0;list-style:none;display:grid;gap:4px;font-size:13px}
 .drawer.furnish .removed li{display:flex;justify-content:space-between;gap:8px}
 .drawer.furnish .foot{border-top:1px solid var(--line);padding-top:8px}
+/* the design questionnaire */
+.brief{top:calc(env(safe-area-inset-top,0px) + 14px);left:50%;transform:translateX(-50%);width:min(600px,calc(100% - 28px));max-height:calc(100% - 28px - 190px);overflow:auto;padding:16px 18px 18px;display:flex;flex-direction:column;gap:12px;z-index:4;-webkit-user-select:text;user-select:text}
+.brief header{display:flex;align-items:center;justify-content:space-between}
+.brief h2{font-size:19px;margin:0;font-weight:700}
+.brief .lead{margin:0;font-size:14px;line-height:1.6;color:var(--muted)}
+.brief fieldset{border:0;padding:0;margin:0;min-width:0}
+.brief legend{font-size:13px;font-weight:700;padding:0;margin-bottom:6px}
+.brief .styles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.brief .scard{padding:10px}.brief .scard b{font-size:14px}.brief .scard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.brief .bchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.brief .bchip{font:inherit;font-size:14px;display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;border:1px solid var(--line);background:var(--glass-strong);color:var(--fg);cursor:pointer}
+.brief .bchip i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.brief .bchip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.brief .bchip.two{flex-direction:column;align-items:flex-start;gap:0;border-radius:12px;padding:8px 14px}
+.brief .bchip.two small{font-size:11px;opacity:.8}
+.brief .stepper{display:inline-flex;align-items:center;gap:8px;font-size:14px;padding-inline-end:8px}
+.brief .stepper .btn{padding:4px 11px}.brief .stepper b{min-width:1.2em;text-align:center;font-variant-numeric:tabular-nums}
+.brief .field{display:grid;gap:5px;font-size:13px;font-weight:700}
+.brief .field small{font-weight:400;color:var(--muted)}
+.brief textarea{font:inherit;font-size:14px;font-weight:400;color:var(--fg);background:var(--glass-strong);border:1px solid var(--line);border-radius:10px;padding:8px 10px;direction:rtl;resize:vertical}
+.brief .row{display:flex;flex-wrap:wrap;gap:8px}
+.brief .warnline{color:#b4690e;font-size:12px;margin:0}
+@media (max-width:520px){.brief .styles{grid-template-columns:1fr}.brief{max-height:calc(100% - 28px - 100px)}}

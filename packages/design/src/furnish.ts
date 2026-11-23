@@ -16,9 +16,11 @@ export interface Thing {
   where: 'in' | 'out'
   /** keep the model's own proportions inside the footprint (plants, trees) instead of filling it */
   uniform?: boolean
-  group: 'seating' | 'tables' | 'bedroom' | 'work' | 'decor' | 'garden' | 'plants'
+  /** height above the floor it hangs or is mounted at, in metres (a pendant lamp, a picture) */
+  y?: number
+  group: 'seating' | 'tables' | 'bedroom' | 'work' | 'decor' | 'soft' | 'garden' | 'plants'
 }
-export const THING_GROUPS: Record<Thing['group'], string> = { seating: 'ישיבה', tables: 'שולחנות', bedroom: 'חדר שינה', work: 'עבודה', decor: 'צמחים ונוי', garden: 'ריהוט גן', plants: 'עצים וצמחייה' }
+export const THING_GROUPS: Record<Thing['group'], string> = { seating: 'ישיבה', tables: 'שולחנות', bedroom: 'חדר שינה', work: 'עבודה', decor: 'צמחים ונוי', soft: 'שטיחים, תאורה ואחסון', garden: 'ריהוט גן', plants: 'עצים וצמחייה' }
 export const THINGS: Thing[] = [
   { id: 'sofa', he: 'ספה', model: 'sofa', w: 220, d: 95, h: .85, where: 'in', group: 'seating' },
   { id: 'armchair', he: 'כורסה', model: 'armchair', w: 85, d: 85, h: .8, where: 'in', group: 'seating' },
@@ -34,6 +36,14 @@ export const THINGS: Thing[] = [
   { id: 'plant', he: 'עציץ', model: 'succulent', w: 40, d: 40, h: .55, uniform: true, where: 'in', group: 'decor' },
   { id: 'olive-pot', he: 'עץ זית בעציץ', model: 'oliveTree', w: 105, d: 80, h: 1.9, uniform: true, where: 'in', group: 'decor' },
   { id: 'vase', he: 'אגרטל', model: 'vase', w: 30, d: 30, h: .55, uniform: true, where: 'in', group: 'decor' },
+  // built into the viewer (simple, real-size): what makes a room look lived in
+  { id: 'rug-large', he: 'שטיח גדול', model: 'homeRug', w: 300, d: 200, h: .02, where: 'in', group: 'soft' },
+  { id: 'rug-small', he: 'שטיח קטן', model: 'homeRug', w: 200, d: 140, h: .02, where: 'in', group: 'soft' },
+  { id: 'tv-unit', he: 'מזנון וטלוויזיה', model: 'homeTvUnit', w: 200, d: 42, h: 1.55, where: 'in', group: 'soft' },
+  { id: 'bookshelf', he: 'כוננית ספרים', model: 'homeShelf', w: 110, d: 32, h: 1.9, where: 'in', group: 'soft' },
+  { id: 'console', he: 'קונסולה', model: 'homeConsole', w: 120, d: 35, h: .82, where: 'in', group: 'soft' },
+  { id: 'floor-lamp', he: 'מנורת עמידה', model: 'homeFloorLamp', w: 40, d: 40, h: 1.6, where: 'in', group: 'soft' },
+  { id: 'pendant', he: 'מנורת תלייה', model: 'homePendant', w: 36, d: 36, h: 1.1, y: 1.7, where: 'in', group: 'soft' },
   // outdoors: built into the viewer (simple, real-size), plus the neighbourhood's trees
   { id: 'lounger', he: 'מיטת שיזוף', model: 'gardenLounger', w: 70, d: 195, h: .8, where: 'out', group: 'garden' },
   { id: 'parasol', he: 'שמשייה', model: 'gardenParasol', w: 280, d: 280, h: 2.5, where: 'out', group: 'garden' },
@@ -99,7 +109,7 @@ export function applyFurniture(house: House, edits: Array<[string, ItemEdit | Ad
     if (!t) { issues.push({ key, level: 'error', message: `Unknown piece "${e.thing}"` }); continue }
     const w = t.w * pxPerCm, d = t.d * pxPerCm, q = quarter(e.turn)
     const r = turned([e.x - w / 2, e.y - d / 2, e.x + w / 2, e.y + d / 2], q)
-    items.push({ k: 'model', f: e.floor, name: t.model, r, h: t.h, rot: q * Math.PI / 2, ...(t.uniform ? { uniform: true } : {}), ...(e.out ? { layer: 'outdoor' as const } : {}) })
+    items.push({ k: 'model', f: e.floor, name: t.model, r, h: t.h, rot: q * Math.PI / 2, ...(t.uniform ? { uniform: true } : {}), ...(t.y ? { y: t.y } : {}), ...(e.out ? { layer: 'outdoor' as const } : {}) })
     keys.push(key)
   }
   house.items = items

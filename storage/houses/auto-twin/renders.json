@@ -47,5 +47,47 @@
   "storey": 1,
   "file": "render_f1-6.jpg",
   "seconds": 192
+ },
+ {
+  "id": "f1-7",
+  "name": "פ\"ישיבה",
+  "storey": 1,
+  "file": "render_f1-7.jpg",
+  "seconds": 193
+ },
+ {
+  "id": "f1-8",
+  "name": "סלון",
+  "storey": 1,
+  "file": "render_f1-8.jpg",
+  "seconds": 184
+ },
+ {
+  "id": "f2-9",
+  "name": "ח\"כביסה",
+  "storey": 2,
+  "file": "render_f2-9.jpg",
+  "seconds": 144
+ },
+ {
+  "id": "f2-10",
+  "name": "ח\"שינה ילדים",
+  "storey": 2,
+  "file": "render_f2-10.jpg",
+  "seconds": 136
+ },
+ {
+  "id": "f2-11",
+  "name": "ח\"שינה ילדים",
+  "storey": 2,
+  "file": "render_f2-11.jpg",
+  "seconds": 133
+ },
+ {
+  "id": "f2-12",
+  "name": "פ\"ישיבה",
+  "storey": 2,
+  "file": "render_f2-12.jpg",
+  "seconds": 202
  }
 ]

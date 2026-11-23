@@ -82,6 +82,46 @@ const BUILD: Record<string, (M: Mats) => THREE.Group> = {
     return g
   },
 }
+// what makes a room look lived in: soft furnishings, light and storage
+Object.assign(BUILD, {
+  homeRug: (M: Mats) => { const g = new THREE.Group(); box(g, M.rug, 3.0, .018, 2.0, 0, 0, 0); return g },
+  homeTvUnit: (M: Mats) => {
+    const g = new THREE.Group()
+    box(g, M.oak, 2.0, .34, .4, 0, .12, 0); box(g, M.metal, 1.9, .12, .36, 0, 0, 0)                      // a low console on a recessed plinth
+    box(g, M.blackGlass, 1.45, .82, .035, 0, .72, -.17)                                                  // the screen, on the wall
+    box(g, M.ceramic, .16, .2, .16, -.78, .46, .02); box(g, M.walnut, .3, .05, .2, .7, .46, .02)
+    return g
+  },
+  homeShelf: (M: Mats) => {
+    const g = new THREE.Group()
+    box(g, M.oak, .03, 1.9, .32, -.535, 0, 0); box(g, M.oak, .03, 1.9, .32, .535, 0, 0); box(g, M.oak, 1.1, .02, .3, 0, 0, -.005)
+    for (let i = 0; i <= 5; i++) box(g, M.oak, 1.04, .025, .3, 0, .04 + i * .37, 0)
+    // books and a few objects
+    const tone = [M.fabricD, M.linen, M.walnut, M.fabric, M.metal]
+    for (let i = 0; i < 5; i++) for (let k = 0; k < 6; k++) { if ((i * 7 + k * 3) % 5 === 0) continue; const hgt = .2 + ((i * 3 + k) % 4) * .03; box(g, tone[(i + k) % tone.length], .11, hgt, .2, -.42 + k * .165, .065 + i * .37, -.02) }
+    return g
+  },
+  homeConsole: (M: Mats) => {
+    const g = new THREE.Group()
+    box(g, M.oak, 1.2, .04, .35, 0, .78, 0)
+    for (const x of [-.56, .56]) { box(g, M.metal, .03, .78, .03, x, 0, -.15); box(g, M.metal, .03, .78, .03, x, 0, .15) }
+    box(g, M.metal, 1.12, .02, .3, 0, .2, 0)
+    cyl(g, M.ceramic, .07, .09, .22, -.35, .82, 0, 12); blob(g, M.leaf, .13, -.35, 1.13, 0)
+    return g
+  },
+  homeFloorLamp: (M: Mats) => {
+    const g = new THREE.Group()
+    cyl(g, M.metal, .16, .17, .025, 0, 0, 0, 20); cyl(g, M.metal, .012, .012, 1.3, 0, .02, 0, 8)
+    cyl(g, M.linen, .16, .2, .28, 0, 1.3, 0, 20); cyl(g, M.lightDisc, .1, .1, .01, 0, 1.31, 0, 12)
+    return g
+  },
+  homePendant: (M: Mats) => {
+    const g = new THREE.Group()
+    cyl(g, M.metal, .004, .004, .78, 0, .32, 0, 6)                                                       // the cord, up to the ceiling
+    cyl(g, M.metal, .05, .18, .3, 0, .02, 0, 20); cyl(g, M.lightDisc, .15, .15, .012, 0, .012, 0, 16)    // the shade and its light
+    return g
+  },
+})
 export const GARDEN_MODELS = Object.keys(BUILD)
 
 /** Add the built-in pieces to the loaded models (once per viewer). */
