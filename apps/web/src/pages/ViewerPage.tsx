@@ -82,6 +82,7 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
   // the demo never shows a bare house: until the visitor answers the questionnaire it is staged with the default answers
   useEffect(() => {
     if (!STATIC || !viewer || !base || asked.current) return
+    if (new URLSearchParams(location.search).has('bare')) return        // ?bare: the architecture alone (used to capture rooms for AI staging)
     asked.current = true
     const doc = design.current.doc, empty = Object.keys(doc.design.finishes).length + Object.keys(doc.design.edits).length === 0
     if (empty) { try { stage(viewer, base, design.current, setEdited, storedBrief(houseId) ?? DEFAULT_BRIEF); bump(n => n + 1) } catch { setDrawer(d => d ?? 'brief') } }
