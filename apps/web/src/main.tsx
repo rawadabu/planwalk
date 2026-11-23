@@ -17,6 +17,7 @@ import ProjectPage from './pages/app/ProjectPage'
 import Prices from './pages/app/Prices'
 import ReviewPage from './pages/app/ReviewPage'
 import InvitePage from './pages/InvitePage'
+import JoinPage from './pages/JoinPage'
 import NotFound from './pages/NotFound'
 
 createRoot(document.getElementById('root')!).render(
@@ -31,6 +32,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/login" element={<AuthPage mode="signin" />} />
         <Route path="/signup" element={<AuthPage mode="signup" />} />
         <Route path="/invite/:id" element={<InvitePage />} />
+        <Route path="/join/:token" element={<JoinPage />} />
         <Route path="/app" element={<AppShell />}>
           <Route index element={<Projects />} />
           <Route path="p/:id" element={<ProjectPage />} />

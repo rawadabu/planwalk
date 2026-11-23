@@ -10,6 +10,7 @@ import { designRoutes } from './routes/designs.js'
 import { priceRoutes } from './routes/prices.js'
 import { projectRoutes } from './routes/projects.js'
 import { uploadRoutes } from './routes/uploads.js'
+import { clientRoutes } from './routes/clients.js'
 import { authRoutes } from './routes/auth.js'
 import { runMigrations } from './db/client.js'
 import { seed } from './db/seed.js'
@@ -38,6 +39,7 @@ await app.register(designRoutes)
 await app.register(priceRoutes)
 await app.register(projectRoutes)
 await app.register(uploadRoutes)
+await app.register(clientRoutes)
 
 // Production: serve the built web app from the same process (SPA fallback to index.html)
 if (fs.existsSync(path.join(config.webDist, 'index.html'))) {

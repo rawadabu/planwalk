@@ -33,7 +33,7 @@ export default function AppShell() {
             {me.organizations.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
         )}
-        <div className="links"><Link to="/app">Projects</Link><Link to="/app/prices">Price book</Link><Link to="/">Website</Link></div>
+        <div className="links">{org ? <><Link to="/app">Projects</Link><Link to="/app/prices">Price book</Link></> : null}<Link to="/">{org ? 'Website' : 'Planwalk'}</Link></div>
         <span className="who">{me.user.name}</span>
         <button className="btn sm" onClick={async () => { await signOut(); nav('/') }}>Sign out</button>
       </div></nav>
@@ -41,7 +41,7 @@ export default function AppShell() {
         <AppCtx.Provider value={{ me, orgId: org.id, role: org.role, reload: load }}>
           <Outlet />
         </AppCtx.Provider>
-      ) : <Onboarding onDone={load} />}
+      ) : me.clientOf.length ? <ClientHomes me={me} /> : <Onboarding onDone={load} />}
     </>
   )
 }
@@ -69,6 +69,23 @@ function Onboarding({ onDone }: { onDone: () => Promise<void> }) {
         {error && <p className="bad" role="alert">{error}</p>}
         <button className="btn primary" disabled={busy}>{busy ? 'Creating…' : 'Create workspace'}</button>
       </form>
+    </main>
+  )
+}
+
+// A client's own page: the home(s) their architect shared with them.
+function ClientHomes({ me }: { me: Me }) {
+  useEffect(() => { document.title = 'הבית שלי · Planwalk' }, [])
+  return (
+    <main className="wrap dash" dir="rtl">
+      <header><div className="eyebrow">שלום {me.user.name}</div><h1>{me.clientOf.length > 1 ? 'הבתים שלי' : 'הבית שלי'}</h1></header>
+      <section className="list"><ul>{me.clientOf.map(p => (
+        <li key={p.projectId}>
+          <span><b>{p.name}</b><small>{p.studio}{p.address ? ` · ${p.address}` : ''}</small></span>
+          {p.houses.length ? p.houses.map(h => <Link key={h.id} className="btn sm primary" to={`/h/${h.id}`}>{p.houses.length > 1 ? h.title : 'כניסה לבית'}</Link>) : <small>המודל עדיין בהכנה</small>}
+        </li>
+      ))}</ul></section>
+      <p className="empty">בתוך הבית: הסתובבו, שנו חומרים וצבעים, השאירו הערות, ובסוף לחצו "שליחה לאדריכל".</p>
     </main>
   )
 }

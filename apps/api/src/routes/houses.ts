@@ -4,8 +4,8 @@ import { and, desc, eq, gt, isNull, or, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { parseHouse } from '@planwalk/house'
 import { db } from '../db/client.js'
-import { comment, house, member, priceBook, project, shareLink } from '../db/schema.js'
-import { getSession, requireProject, roleIn } from '../lib/guard.js'
+import { comment, house, member, priceBook, project, shareLink, projectMember } from '../db/schema.js'
+import { getSession, requireProject, roleIn, projectRole } from '../lib/guard.js'
 import { can } from '../lib/permissions.js'
 import { storage } from '../lib/storage.js'
 
@@ -34,7 +34,7 @@ async function access(req: FastifyRequest, houseId: string) {
   let role: string | null = null
   if (s && h.projectId) {
     const [p] = await db.select({ org: project.organizationId }).from(project).where(eq(project.id, h.projectId)).limit(1)
-    if (p) role = await roleIn(s.user.id, p.org)
+    if (p) role = await projectRole(s.user.id, h.projectId, p.org)
   }
   const token = (req.query as { share?: string }).share ?? (req.headers['x-share-token'] as string | undefined)
   const link = await validShare(token)
@@ -63,7 +63,7 @@ export async function houseRoutes(app: FastifyInstance) {
     const s = await getSession(req)
     const mine = s ? db.select({ id: project.id }).from(project).where(inArray(project.organizationId, db.select({ o: member.organizationId }).from(member).where(eq(member.userId, s.user.id)))) : null
     const rows = await db.select({ id: house.id, title: house.title, public: house.public, projectId: house.projectId }).from(house)
-      .where(mine ? or(eq(house.public, true), inArray(house.projectId, mine)) : eq(house.public, true))
+      .where(mine ? or(eq(house.public, true), inArray(house.projectId, mine), inArray(house.projectId, db.select({ id: projectMember.projectId }).from(projectMember).where(eq(projectMember.userId, s!.user.id)))) : eq(house.public, true))
     return rows
   })
 

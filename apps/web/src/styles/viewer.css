@@ -260,3 +260,14 @@
 .gbar{display:flex;align-items:center;gap:12px;color:#fff;font-size:14px}
 .gbar span{opacity:.7;font-size:12px}
 .viewer .gbar .btn{background:rgba(255,255,255,.12);color:#fff;border-color:transparent}
+/* send to the architect */
+.drawer.send .chg h3{font-size:13px;margin:0 0 4px;font-weight:700}
+.drawer.send .chg h3 small{color:var(--muted);font-weight:500}
+.drawer.send .chg ul{margin:0;padding:0;list-style:none;display:grid;gap:4px;font-size:13px;line-height:1.5}
+.drawer.send .chg li{padding:6px 8px;border-radius:8px;background:var(--glass-strong)}
+.drawer.send .chg em{font-style:normal;color:#b4690e}
+.drawer.send .field small{color:var(--muted)}
+.drawer.send textarea{resize:vertical;width:100%}
+.drawer.send .sentok{font-size:14px;line-height:1.6;margin:0}
+.viewer .bar .sendbtn{font-weight:700}
+.mbar button.send b{color:var(--accent)}

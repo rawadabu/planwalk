@@ -26,7 +26,11 @@ export const roles = {
 export type Role = keyof typeof roles
 export type Resource = 'project' | 'upload' | 'unit' | 'share' | 'comment' | 'design'
 
+/** A client belongs to one project (not to the organization): they look, comment and work on their own designs. */
+const CLIENT: Partial<Record<Resource, readonly string[]>> = { project: ['read'], comment: ['create'], design: ['create', 'update'] }
+
 export function can(role: string, resource: Resource, action: string): boolean {
+  if (role === 'client') return !!CLIENT[resource]?.includes(action)
   const r = roles[role as Role]
   if (!r) return false
   const allowed = (r.statements as Record<string, readonly string[] | undefined>)[resource]

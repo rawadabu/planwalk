@@ -40,7 +40,7 @@ export default function Projects() {
         ) : (
           <ul>{rows.map(p => (
             <li key={p.id}>
-              <span><b>{p.name}</b><small>{p.kind === 'development' ? 'Development' : 'Private home'}{p.address ? ` · ${p.address}` : ''} · {p.units} units · {p.houses} 3D models</small></span>
+              <span><b>{p.name}</b><small>{p.kind === 'development' ? 'Development' : 'Private home'}{p.address ? ` · ${p.address}` : ''}{p.asClient ? ' · shared with you as a client' : ` · ${p.units} units · ${p.houses} 3D models`}</small></span>
               <Link className="btn sm" to={`/app/p/${p.id}`}>Open</Link>
             </li>
           ))}</ul>

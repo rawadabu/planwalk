@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router'
+import { useParams, useSearchParams } from 'react-router'
 import { useViewer } from '../viewer/useViewer'
 import { MiniMap } from '../viewer/MiniMap'
 import { Toolbar } from '../viewer/Toolbar'
@@ -7,7 +7,8 @@ import { MeasureLabel } from '../viewer/MeasureLabel'
 import { Joystick } from '../viewer/Joystick'
 import { AreasPanel } from '../viewer/Areas'
 import { GalleryPanel } from '../viewer/Gallery'
-import { DesignPanel, newDesignSession } from '../viewer/DesignPanel'
+import { DesignPanel, newDesignSession, renderDesign } from '../viewer/DesignPanel'
+import { SendPanel } from '../viewer/Send'
 import { KitchenPanel } from '../viewer/KitchenPanel'
 import { CostPanel } from '../viewer/Cost'
 import { Tour } from '../viewer/Tour'
@@ -15,7 +16,8 @@ import { StylesBar } from '../viewer/Styles'
 import { SunPanel } from '../viewer/SunPanel'
 import { CommentsPanel, CommentPins, useComments } from '../viewer/Comments'
 import { type Drawer } from '../viewer/Toolbar'
-import { api, type HouseMeta } from '../api'
+import { api, STATIC, type HouseMeta } from '../api'
+import type { Design } from '@planwalk/design'
 import type { House } from '@planwalk/house'
 import '../styles/viewer.css'
 
@@ -48,6 +50,22 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
     })
   }, [viewer, measuring, touring, drawer, ui.mode, ui.floor])
   const openCount = comments.list.filter(c => !c.parentId && !c.resolved).length
+  // a client comes back to their own choices; the architect opens a client's design from the feedback report (?design=)
+  const [query] = useSearchParams(), wanted = query.get('design'), isClient = meta?.viewer.role === 'client'
+  const base = ui.house
+  useEffect(() => {
+    if (STATIC || !viewer || !base || !meta?.viewer.role || design.current.active) return
+    let off = false
+    ;(async () => {
+      const id = wanted ?? (isClient ? (await api.designs(houseId)).designs[0]?.id : null)
+      if (!id || off) return
+      const d = await api.design(id); if (off || design.current.active) return
+      design.current.doc.reset(d.data as Design); design.current.active = { id: d.id, name: d.name, version: d.version }
+      renderDesign(viewer, base, design.current, setEdited, design.current.doc.design); bump(n => n + 1)
+    })().catch(() => { /* the base plan stays on screen */ })
+    return () => { off = true }
+  }, [viewer, base, meta, houseId, wanted, isClient])
+  const myNotes = comments.list.filter(c => !c.parentId && !c.resolved && c.mine).length
 
   return (
     <div className="viewer">
@@ -79,15 +97,18 @@ export default function ViewerPage({ houseIdOverride, share }: { houseIdOverride
           {drawer === 'styles' && <StylesBar viewer={viewer} house={ui.house} session={design.current} prices={meta?.prices} onHouse={setEdited} onClose={() => setDrawer(null)} onChanged={() => bump(n => n + 1)} />}
           {touring && <Tour viewer={viewer} house={shown!} onEnd={() => setTouring(false)} />}
           {drawer === 'cost' && <CostPanel house={ui.house} houseId={houseId} design={design.current.doc.design} prices={meta?.prices as never} onClose={() => setDrawer(null)} />}
+          {drawer === 'send' && <SendPanel house={ui.house} houseId={houseId} session={design.current} prices={meta?.prices as never} notes={myNotes} onClose={() => setDrawer(null)} onSaved={() => bump(n => n + 1)} />}
           {drawer === 'areas' && <AreasPanel house={shown!} floor={ui.floor} onClose={() => setDrawer(null)} />}
           {drawer === 'photos' && <GalleryPanel houseId={houseId} share={share} onClose={() => setDrawer(null)} />}
           {drawer === 'sun' && meta && <SunPanel viewer={viewer} meta={meta} onClose={() => setDrawer(null)} />}
           {drawer === 'comments' && meta && <CommentsPanel viewer={viewer} house={ui.house} houseId={houseId} share={share} meta={meta} floor={ui.floor} state={comments} selected={selected} setSelected={setSelected} onClose={() => setDrawer(null)} />}
-          <Toolbar viewer={viewer} ui={ui} measuring={measuring} setMeasuring={setMeasuring} drawer={drawer} setDrawer={d => { setDrawer(d); setMoreOpen(false) }} commentCount={openCount} onTour={() => { setDrawer(null); setTouring(true); setMoreOpen(false) }} open={moreOpen} />
+          <Toolbar viewer={viewer} ui={ui} measuring={measuring} setMeasuring={setMeasuring} drawer={drawer} setDrawer={d => { setDrawer(d); setMoreOpen(false) }} commentCount={openCount} canSend={isClient} onTour={() => { setDrawer(null); setTouring(true); setMoreOpen(false) }} open={moreOpen} />
           <nav className="mbar" aria-label="פעולות עיקריות">
             <button onClick={() => { setDrawer(null); setTouring(true) }}><b>▶</b>סיור</button>
             <button aria-pressed={drawer === 'styles'} onClick={() => setDrawer(drawer === 'styles' ? null : 'styles')}><b>◐</b>סגנון</button>
-            <button aria-pressed={drawer === 'sun'} onClick={() => setDrawer(drawer === 'sun' ? null : 'sun')}><b>☀</b>שעה</button>
+            {isClient
+              ? <button className="send" aria-pressed={drawer === 'send'} onClick={() => setDrawer(drawer === 'send' ? null : 'send')}><b>➤</b>לאדריכל</button>
+              : <button aria-pressed={drawer === 'sun'} onClick={() => setDrawer(drawer === 'sun' ? null : 'sun')}><b>☀</b>שעה</button>}
             <button onClick={() => viewer.setFloor(((ui.floor + 1) % 3) as 0 | 1 | 2)}><b>⇅</b>{ui.house.floors[((ui.floor + 1) % 3) as 0 | 1 | 2].name}</button>
             <button aria-pressed={moreOpen} onClick={() => setMoreOpen(o => !o)}><b>⋯</b>עוד</button>
           </nav>

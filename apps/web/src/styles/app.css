@@ -151,3 +151,25 @@ table select{padding:6px 8px;font-size:13px}
 .uprow{display:flex !important;grid-auto-flow:column;align-items:center;gap:10px}
 @media (max-width:820px){.rgrid{grid-template-columns:1fr}}
 .review .saving{align-self:center;font-size:13px;color:var(--muted)}
+/* clients and their feedback */
+.clients{display:grid;gap:10px}
+.clients .warnline{color:#9a6312;font-size:13px;margin:0}
+.clients .newlink input{font:inherit;font-family:var(--mono);font-size:12px;color:var(--fg);background:var(--bg);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px;min-width:0}
+.fb{display:grid;gap:12px}
+.fbcard{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:16px;display:grid;gap:10px}
+.fbcard.fb-sent{border-color:var(--accent)}
+.fbcard.fb-done{opacity:.7}
+.fbcard header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:0;margin:0}
+.fbcard header span{display:grid;gap:2px}
+.fbcard header small{color:var(--muted);font-size:13px}
+.fbcard blockquote{margin:0;padding:10px 12px;border-inline-start:3px solid var(--accent);background:var(--surface-2);border-radius:8px;font-size:15px;line-height:1.6}
+.fbgroup h3{font-size:13px;margin:0 0 4px;color:var(--muted);font-weight:600}
+.fbgroup h3 small{font-weight:500}
+.fbgroup ul{margin:0;padding:0;list-style:none;display:grid;gap:4px;font-size:14px;line-height:1.5}
+.fbgroup li{padding:6px 10px;border-radius:8px;background:var(--surface-2)}
+.fbcard footer{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0;margin:0;border:0}
+.fbcard .fbcost{margin-inline-end:auto;font-size:14px}
+.fbcard .fbcost .up{color:#9a6312}.fbcard .fbcost .down{color:var(--accent)}
+.st-fb-sent{background:var(--accent);color:#fff}
+.st-fb-seen{background:#fbf0dc;color:#9a6312}
+.st-fb-done{background:var(--surface-2);color:var(--faint)}

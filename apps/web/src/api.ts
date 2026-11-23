@@ -5,8 +5,16 @@ export interface Render { id: string; name: string; storey: number; file: string
 // Typed client for the Planwalk API. Same-origin (/api), cookies carry the session.
 export type ProjectKind = 'development' | 'private'
 export type UnitStatus = 'available' | 'reserved' | 'sold'
-export interface Me { user: { id: string; name: string; email: string }; activeOrganizationId: string | null; organizations: Array<{ id: string; name: string; slug: string; role: string; kind: string }> }
-export interface ProjectRow { id: string; organizationId: string; name: string; kind: ProjectKind; address: string | null; createdAt: string; units: number; houses: number }
+export interface ClientHome { projectId: string; name: string; address: string | null; studio: string; houses: Array<{ id: string; title: string }> }
+export interface Me { user: { id: string; name: string; email: string }; activeOrganizationId: string | null; organizations: Array<{ id: string; name: string; slug: string; role: string; kind: string }>; clientOf: ClientHome[] }
+/** What a client changed against the architect's plan (packages/design/src/report.ts). */
+export interface Change { kind: 'finish' | 'window' | 'wall' | 'kitchen'; storey: number | null; where: string; what: string; issue?: string }
+export interface ChangeReport { changes: Change[]; counts: Record<Change['kind'], number>; cost: { base: number; total: number; difference: number }; note: string | null; comments?: number }
+export interface Clients { members: Array<{ id: string; name: string; email: string; since: string }>; invites: Array<{ id: string; email: string; name: string | null; createdAt: string; expiresAt: string }> }
+export interface NewInvite { id: string; email: string; name: string | null; expiresAt: string; link: string }
+export interface Feedback { id: string; houseId: string; designId: string | null; designVersion: number | null; designName: string | null; author: string | null; message: string | null; report: ChangeReport; status: 'sent' | 'seen' | 'done'; createdAt: string }
+export interface JoinInfo { project: string; studio: string; invitedBy: string | null; email: string; name: string | null }
+export interface ProjectRow { id: string; organizationId: string; name: string; kind: ProjectKind; address: string | null; createdAt: string; units: number; houses: number; asClient?: boolean }
 export interface Unit { id: string; number: string; buildingId: string | null; houseId: string | null; floor: number | null; rooms: number | null; areaM2: number | null; status: UnitStatus; priceIls: number | null }
 export interface HouseRow { id: string; title: string; public: boolean; projectId: string | null }
 export interface BuildReport { readings: 'api' | 'cache' | 'none'; scale: { ptPerCm: number; from: 'dimensions' | 'assumed'; dimensions: number; agree: number; written: number | null }; warnings: string[]; storeys: Array<{ storey: number; name: string; title: string | null; rooms: number; unsureRooms: number; openings: number; unsureOpenings: number; stairs: number }> }
@@ -67,6 +75,15 @@ export const api = {
   editPlan: (id: string, b: { rooms?: Array<{ storey: number; index: number; name: string }>; openings?: Array<{ storey: number; index: number; kind: 'window' | 'glass-door' }> }) => req<{ report: BuildReport }>(`/api/uploads/${id}/plan`, json('PATCH', b)),
   publishUpload: (id: string) => req<Upload>(`/api/uploads/${id}/publish`, { method: 'POST' }),
   rebuildUpload: (id: string) => req<{ ok: boolean }>(`/api/uploads/${id}/rebuild`, { method: 'POST' }),
+  clients: (projectId: string) => req<Clients>(`/api/projects/${projectId}/clients`),
+  inviteClient: (projectId: string, b: { email: string; name?: string }) => req<NewInvite>(`/api/projects/${projectId}/clients`, json('POST', b)),
+  revokeInvite: (projectId: string, id: string) => req<void>(`/api/projects/${projectId}/clients/invites/${id}`, { method: 'DELETE' }),
+  removeClient: (projectId: string, id: string) => req<void>(`/api/projects/${projectId}/clients/${id}`, { method: 'DELETE' }),
+  joinInfo: (token: string) => req<JoinInfo>(`/api/join/${encodeURIComponent(token)}`),
+  join: (token: string) => req<{ projectId: string; houseId: string | null }>(`/api/join/${encodeURIComponent(token)}`, { method: 'POST' }),
+  sendFeedback: (houseId: string, b: { designId: string; message?: string }) => req<{ id: string; createdAt: string; report: ChangeReport }>(`/api/houses/${houseId}/feedback`, json('POST', b)),
+  feedback: (projectId: string) => req<Feedback[]>(`/api/projects/${projectId}/feedback`),
+  setFeedback: (id: string, status: Feedback['status']) => req<{ id: string; status: Feedback['status'] }>(`/api/feedback/${id}`, json('PATCH', { status })),
   shares: (houseId: string) => req<ShareRow[]>(`/api/houses/${houseId}/shares`),
   createShare: (houseId: string, b: { permission: 'view' | 'comment'; expiresInDays: number | null; label?: string }) => req<NewShare>(`/api/houses/${houseId}/shares`, json('POST', b)),
   revokeShare: (id: string) => req<void>(`/api/shares/${id}`, { method: 'DELETE' }),

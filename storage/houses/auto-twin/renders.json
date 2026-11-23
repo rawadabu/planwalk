@@ -82,5 +82,68 @@
   "storey": 2,
   "file": "render_f2-11.jpg",
   "seconds": 251
+ },
+ {
+  "id": "f2-12",
+  "name": "מקלחת",
+  "storey": 2,
+  "file": "render_f2-12.jpg",
+  "seconds": 187
+ },
+ {
+  "id": "f2-13",
+  "name": "מקלחת",
+  "storey": 2,
+  "file": "render_f2-13.jpg",
+  "seconds": 161
+ },
+ {
+  "id": "f2-14",
+  "name": "ח\"ארונות",
+  "storey": 2,
+  "file": "render_f2-14.jpg",
+  "seconds": 164
+ },
+ {
+  "id": "f2-15",
+  "name": "ח\"שינה הורים",
+  "storey": 2,
+  "file": "render_f2-15.jpg",
+  "seconds": 173
+ },
+ {
+  "id": "f1-16",
+  "name": "נוף מהפ\"ישיבה",
+  "storey": 1,
+  "file": "render_f1-16.jpg",
+  "seconds": 75
+ },
+ {
+  "id": "f1-17",
+  "name": "נוף מהמרפסת",
+  "storey": 1,
+  "file": "render_f1-17.jpg",
+  "seconds": 146
+ },
+ {
+  "id": "f1-18",
+  "name": "נוף מהמרפסת",
+  "storey": 1,
+  "file": "render_f1-18.jpg",
+  "seconds": 128
+ },
+ {
+  "id": "f2-19",
+  "name": "נוף מהמרפסת",
+  "storey": 2,
+  "file": "render_f2-19.jpg",
+  "seconds": 102
+ },
+ {
+  "id": "f2-20",
+  "name": "נוף מהמרפסת",
+  "storey": 2,
+  "file": "render_f2-20.jpg",
+  "seconds": 389
  }
 ]

@@ -2,8 +2,8 @@ import type { FastifyInstance } from 'fastify'
 import { auth } from '../lib/auth.js'
 import { getSession } from '../lib/guard.js'
 import { db } from '../db/client.js'
-import { member, organization } from '../db/schema.js'
-import { eq } from 'drizzle-orm'
+import { house, member, organization, project, projectMember } from '../db/schema.js'
+import { eq, inArray } from 'drizzle-orm'
 
 // Better Auth handles /api/auth/* (sign-up, sign-in, sessions, organizations, invitations).
 export async function authRoutes(app: FastifyInstance) {
@@ -32,7 +32,17 @@ export async function authRoutes(app: FastifyInstance) {
       user: { id: s.user.id, name: s.user.name, email: s.user.email },
       activeOrganizationId: s.session.activeOrganizationId ?? null,
       organizations: orgs.map(o => ({ ...o, kind: safeKind(o.metadata) })),
+      // homes this person was invited to as a client (not a member of the studio)
+      clientOf: await clientHomes(s.user.id),
     }
   })
 }
 function safeKind(m: string | null) { try { return (JSON.parse(m ?? '{}') as { kind?: string }).kind ?? 'private' } catch { return 'private' } }
+
+async function clientHomes(userId: string) {
+  const rows = await db.select({ projectId: project.id, name: project.name, address: project.address, studio: organization.name })
+    .from(projectMember).innerJoin(project, eq(project.id, projectMember.projectId)).innerJoin(organization, eq(organization.id, project.organizationId)).where(eq(projectMember.userId, userId))
+  if (!rows.length) return []
+  const houses = await db.select({ id: house.id, projectId: house.projectId, title: house.title }).from(house).where(inArray(house.projectId, rows.map(r => r.projectId)))
+  return rows.map(r => ({ ...r, houses: houses.filter(h => h.projectId === r.projectId).map(h => ({ id: h.id, title: h.title })) }))
+}

@@ -1,9 +1,9 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { db } from '../db/client.js'
-import { building, house, member, planUpload, project, unit } from '../db/schema.js'
+import { building, house, member, planUpload, project, projectMember, unit } from '../db/schema.js'
 import { requireProject, requireUser, roleIn } from '../lib/guard.js'
 import { can } from '../lib/permissions.js'
 import { storage } from '../lib/storage.js'
@@ -32,14 +32,16 @@ export async function projectRoutes(app: FastifyInstance) {
   app.get<{ Querystring: { org?: string } }>('/api/projects', async (req, reply) => {
     const s = await requireUser(req, reply); if (!s) return
     const mine = db.select({ id: member.organizationId }).from(member).where(eq(member.userId, s.user.id))
+    const asClient = db.select({ id: projectMember.projectId }).from(projectMember).where(eq(projectMember.userId, s.user.id))
     const rows = await db.select({
       id: project.id, organizationId: project.organizationId, name: project.name, kind: project.kind, address: project.address, createdAt: project.createdAt,
       units: sql<number>`(select count(*)::int from ${unit} where ${unit.projectId} = ${project.id})`,
       houses: sql<number>`(select count(*)::int from ${house} where ${house.projectId} = ${project.id})`,
     }).from(project)
-      .where(req.query.org ? and(eq(project.organizationId, req.query.org), inArray(project.organizationId, mine)) : inArray(project.organizationId, mine))
+      .where(req.query.org ? and(eq(project.organizationId, req.query.org), inArray(project.organizationId, mine)) : or(inArray(project.organizationId, mine), inArray(project.id, asClient)))
       .orderBy(desc(project.createdAt))
-    return rows
+    const clientOf = new Set((await db.select({ id: projectMember.projectId }).from(projectMember).where(eq(projectMember.userId, s.user.id))).map(r => r.id))
+    return rows.map(r => ({ ...r, asClient: clientOf.has(r.id) }))
   })
 
   app.post('/api/projects', async (req, reply) => {
@@ -55,6 +57,11 @@ export async function projectRoutes(app: FastifyInstance) {
   // Full project: buildings, units, houses, uploads, and my role
   app.get<{ Params: { id: string } }>('/api/projects/:id', async (req, reply) => {
     const ctx = await requireProject(req, reply, req.params.id, 'project', 'read'); if (!ctx) return
+    // a client sees their home, not the studio's working files
+    if (ctx.role === 'client') {
+      const houses = await db.select().from(house).where(eq(house.projectId, ctx.project.id))
+      return { id: ctx.project.id, organizationId: ctx.project.organizationId, name: ctx.project.name, kind: ctx.project.kind, address: ctx.project.address, createdAt: ctx.project.createdAt, lat: ctx.project.lat, lng: ctx.project.lng, northDeg: ctx.project.northDeg, role: ctx.role, buildings: [], units: [], houses, uploads: [] }
+    }
     const [buildings, units, houses, uploads] = await Promise.all([
       db.select().from(building).where(eq(building.projectId, ctx.project.id)).orderBy(building.sort),
       db.select().from(unit).where(eq(unit.projectId, ctx.project.id)).orderBy(unit.number),

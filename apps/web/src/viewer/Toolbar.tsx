@@ -9,14 +9,15 @@ const FLOORS: Array<[StoreyId, string]> = [[2, 'שנייה'], [1, 'ראשונה'
 const TIMES: Array<[Exclude<TimeOfDay, 'custom'>, string]> = [['morning', 'בוקר'], ['noon', 'צהריים'], ['golden', 'שעת זהב'], ['evening', 'ערב']]
 const QUALITIES: Array<[Quality, string]> = [['high', 'גבוהה'], ['medium', 'בינונית'], ['low', 'נמוכה']]
 
-export type Drawer = 'areas' | 'sun' | 'comments' | 'design' | 'kitchen' | 'cost' | 'styles' | 'photos' | null
-export function Toolbar({ viewer, ui, measuring, setMeasuring, drawer, setDrawer, commentCount, onTour, open }: { viewer: Viewer; ui: ViewerUiState; measuring: boolean; setMeasuring: (on: boolean) => void; drawer: Drawer; setDrawer: (d: Drawer) => void; commentCount: number; onTour: () => void; open?: boolean }) {
+export type Drawer = 'areas' | 'sun' | 'comments' | 'design' | 'kitchen' | 'cost' | 'styles' | 'photos' | 'send' | null
+export function Toolbar({ viewer, ui, measuring, setMeasuring, drawer, setDrawer, commentCount, onTour, open, canSend }: { viewer: Viewer; ui: ViewerUiState; measuring: boolean; setMeasuring: (on: boolean) => void; drawer: Drawer; setDrawer: (d: Drawer) => void; commentCount: number; onTour: () => void; open?: boolean; canSend?: boolean }) {
   const toggle = (d: Exclude<Drawer, null>) => setDrawer(drawer === d ? null : d)
   const [headBob, setHeadBob] = useState(true)
   const fps = useFps(viewer)
   return (
     <div className={"panel bar" + (open ? " open" : "")} role="toolbar" aria-label="תצוגה והגדרות">
-      <Link className="btn brand" to="/">Planwalk</Link>
+      <Link className="btn brand" to={canSend ? '/app' : '/'}>Planwalk</Link>
+      {canSend && <button className="btn primary sendbtn" aria-pressed={drawer === 'send'} onClick={() => toggle('send')}>שליחה לאדריכל</button>}
       {!location.pathname.startsWith("/s/") && <Link className="btn" to="story">סיפור הבנייה</Link>}
       <span className="sep" />
       <div className="seg" role="group" aria-label="קומה">

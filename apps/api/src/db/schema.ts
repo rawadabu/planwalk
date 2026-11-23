@@ -199,3 +199,41 @@ export const priceBook = pgTable('price_book', {
   updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+/** A client of one project: sees only that project's houses, comments, and works on their own designs. */
+export const projectMember = pgTable('project_member', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull().references(() => project.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  role: text('role').notNull().default('client'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex('project_member_unique').on(t.projectId, t.userId), index('project_member_user_idx').on(t.userId)])
+
+/** An invitation for a client. The raw token is in the link only; its SHA-256 is stored. One use. */
+export const projectInvite = pgTable('project_invite', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull().references(() => project.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  name: text('name'),
+  tokenHash: text('token_hash').notNull().unique(),
+  invitedBy: text('invited_by').references(() => user.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+}, t => [index('project_invite_project_idx').on(t.projectId)])
+
+/** "Send to the architect": a snapshot of what the client changed (the change report) at one design version. */
+export const feedback = pgTable('feedback', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull().references(() => project.id, { onDelete: 'cascade' }),
+  houseId: text('house_id').notNull().references(() => house.id, { onDelete: 'cascade' }),
+  designId: text('design_id').references(() => design.id, { onDelete: 'set null' }),
+  designVersion: integer('design_version'),
+  authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),
+  message: text('message'),
+  report: jsonb('report').notNull(),
+  status: text('status').notNull().default('sent'),      // sent | seen | done
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  seenAt: timestamp('seen_at', { withTimezone: true }),
+}, t => [index('feedback_project_idx').on(t.projectId)])

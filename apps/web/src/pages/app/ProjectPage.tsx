@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { api, type HouseRow, type NewShare, type ProjectDetail, type ShareRow, type UnitStatus } from '../../api'
+import { api, type Clients, type Feedback, type HouseRow, type NewInvite, type NewShare, type ProjectDetail, type ShareRow, type UnitStatus } from '../../api'
 
 const ROLE_CAN = {
   edit: ['owner', 'admin', 'architect'], upload: ['owner', 'admin', 'architect'], unit: ['owner', 'admin', 'sales'], share: ['owner', 'admin', 'architect', 'sales'],
@@ -36,6 +36,17 @@ export default function ProjectPage() {
         )}
       </section>
 
+      {p.role === 'client' ? null : <>
+      {can('edit') && <section>
+        <h2>Client feedback</h2>
+        <FeedbackList projectId={p.id} />
+      </section>}
+
+      {can('edit') && <section>
+        <h2>Clients</h2>
+        <ClientsBox projectId={p.id} hasModel={p.houses.length > 0} />
+      </section>}
+
       <section>
         <h2>Location</h2>
         <LocationForm p={p} canEdit={can('edit')} onDone={load} />
@@ -62,7 +73,93 @@ export default function ProjectPage() {
           ))}</ul>
         )}
       </section>
+      </>}
     </main>
+  )
+}
+
+// Invite the home's owners: they get a personal link, choose a password, and see only this project.
+function ClientsBox({ projectId, hasModel }: { projectId: string; hasModel: boolean }) {
+  const [c, setC] = useState<Clients | null>(null), [email, setEmail] = useState(''), [name, setName] = useState('')
+  const [made, setMade] = useState<NewInvite | null>(null), [copied, setCopied] = useState(false), [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false)
+  const load = () => api.clients(projectId).then(setC).catch(e => setError(e.message))
+  useEffect(() => { load() }, [projectId])
+  const invite = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setError(null)
+    try { setMade(await api.inviteClient(projectId, { email, name: name || undefined })); setEmail(''); setName(''); setCopied(false); load() }
+    catch (err) { setError((err as Error).message) } finally { setBusy(false) }
+  }
+  const copy = async () => { try { await navigator.clipboard.writeText(made!.link); setCopied(true) } catch { setCopied(false) } }
+  const wa = made ? `https://wa.me/?text=${encodeURIComponent(`הבית שלכם מוכן לסיור בתלת-ממד:\n${made.link}`)}` : ''
+  return (
+    <div className="clients">
+      <p className="empty">Clients walk through the home, change finishes and the kitchen, leave notes, and send it all back to you as one report. They see this project only.</p>
+      {!hasModel && <p className="warnline">There is no 3D model yet. You can invite now; the client will see the home once the plans are built.</p>}
+      <form className="unitform" onSubmit={invite}>
+        <input aria-label="Client's email" type="email" placeholder="Client's email" value={email} onChange={e => setEmail(e.target.value)} required maxLength={200} />
+        <input aria-label="Client's name" placeholder="Name (optional)" value={name} onChange={e => setName(e.target.value)} maxLength={80} />
+        <button className="btn sm primary" disabled={busy}>{busy ? 'Inviting…' : 'Invite client'}</button>
+      </form>
+      {made && (
+        <div className="newlink" role="status">
+          <p>Invitation emailed to {made.email}. You can also send the link yourself. It is shown only once and works for one person.</p>
+          <div><input readOnly value={made.link} onFocus={e => e.currentTarget.select()} aria-label="Invitation link" /><button className="btn sm" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button><a className="btn sm" href={wa} target="_blank" rel="noreferrer">WhatsApp</a></div>
+        </div>
+      )}
+      {error && <p className="bad" role="alert">{error}</p>}
+      {c && (c.members.length > 0 || c.invites.length > 0) && (
+        <ul className="rows">
+          {c.members.map(m => (
+            <li key={m.id}><span><b>{m.name}</b><small>{m.email} · joined {new Date(m.since).toLocaleDateString()}</small></span>
+              <button className="btn sm" onClick={async () => { if (confirm(`Remove ${m.name}'s access to this project?`)) { await api.removeClient(projectId, m.id); load() } }}>Remove</button></li>
+          ))}
+          {c.invites.map(i => (
+            <li key={i.id}><span><b>{i.name || i.email}</b><small>{i.name ? `${i.email} · ` : ''}invited {new Date(i.createdAt).toLocaleDateString()} · not joined yet</small></span>
+              <button className="btn sm" onClick={async () => { await api.revokeInvite(projectId, i.id); load() }}>Cancel invite</button></li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// What clients sent back: every change against your plan, in their words, with the price difference.
+const KIND_LABEL: Record<string, string> = { wall: 'Walls', window: 'Windows', kitchen: 'Kitchen', finish: 'Finishes' }
+function FeedbackList({ projectId }: { projectId: string }) {
+  const [rows, setRows] = useState<Feedback[] | null>(null), [error, setError] = useState<string | null>(null)
+  const load = () => api.feedback(projectId).then(setRows).catch(e => setError(e.message))
+  useEffect(() => { load() }, [projectId])
+  if (error) return <p className="bad">{error}</p>
+  if (!rows) return <p className="empty">Loading…</p>
+  if (!rows.length) return <p className="empty">Nothing yet. When a client presses “Send to architect” in the walkthrough, their changes appear here.</p>
+  const set = async (f: Feedback, status: Feedback['status']) => { await api.setFeedback(f.id, status); load() }
+  return (
+    <div className="fb">{rows.map(f => {
+      const r = f.report, diff = r.cost.difference
+      return (
+        <article key={f.id} className={`fbcard fb-${f.status}`}>
+          <header>
+            <span><b>{f.author ?? 'Client'}</b><small>{new Date(f.createdAt).toLocaleString()} · {r.changes.length} change{r.changes.length === 1 ? '' : 's'}{r.comments ? ` · ${r.comments} open note${r.comments === 1 ? '' : 's'}` : ''}</small></span>
+            <em className={`st st-fb-${f.status}`}>{f.status === 'sent' ? 'New' : f.status === 'seen' ? 'Seen' : 'Done'}</em>
+          </header>
+          {f.message && <blockquote dir="auto">{f.message}</blockquote>}
+          {r.changes.length === 0 ? <p className="empty">No changes to the plan{r.comments ? '; see the notes in the walkthrough.' : '.'}</p> : (
+            (['wall', 'window', 'kitchen', 'finish'] as const).filter(k => r.counts[k]).map(k => (
+              <div key={k} className="fbgroup">
+                <h3>{KIND_LABEL[k]} <small>{r.counts[k]}</small></h3>
+                <ul dir="rtl">{r.changes.filter(c => c.kind === k).map((c, i) => <li key={i}><b>{c.where}</b> {c.what}{c.issue ? <small className="bad"> · {c.issue}</small> : null}</li>)}</ul>
+              </div>
+            ))
+          )}
+          <footer>
+            <span className="fbcost">{diff === 0 ? 'No price difference' : <>Price difference: <b className={diff > 0 ? 'up' : 'down'}>{diff > 0 ? '+' : '−'}₪{Math.abs(Math.round(diff)).toLocaleString('en-US')}</b></>}</span>
+            {f.designId && <Link className="btn sm primary" to={`/h/${f.houseId}?design=${f.designId}`}>See it in 3D</Link>}
+            {f.status === 'sent' && <button className="btn sm" onClick={() => set(f, 'seen')}>Mark as seen</button>}
+            {f.status !== 'done' && <button className="btn sm" onClick={() => set(f, 'done')}>Done</button>}
+          </footer>
+        </article>
+      )
+    })}</div>
   )
 }
 
