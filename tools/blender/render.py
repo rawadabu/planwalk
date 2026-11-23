@@ -77,5 +77,6 @@ for v in json.load(open(views_path)):
     else:
         cam_data.type = 'PERSP'; cam_data.lens = 15 if v.get('wide') else 26 if v.get('outside') else 19; cam_data.sensor_width = 36
         scene.render.resolution_x = width; scene.render.resolution_y = int(width * 2 / 3)
+    scene.view_settings.exposure = -1.1 if v.get('outside') else 0.15      # daylight outside is ~3 stops brighter than a room
     scene.render.filepath = os.path.join(out, 'render_' + key + '.jpg')
     t = time.time(); bpy.ops.render.render(write_still=True); print('rendered', key, round(time.time() - t), 's', flush=True)

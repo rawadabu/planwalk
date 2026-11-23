@@ -58,7 +58,7 @@ export default class Neighbourhood {
     const TREES = ['nbTreeOlive', 'nbTreeFicus', 'nbTreeCypress'].filter(have)
     const tree = (u: number, v: number, s = 1) => {
       const [x, y] = P(u, v)
-      if (TREES.length) { const name = pick(TREES), h = (name === 'nbTreeCypress' ? 8 : name === 'nbTreeFicus' ? 7 : 5) * (.85 + rnd() * .3) * s, w = name === 'nbTreeCypress' ? 220 : 560 * s; place(name, [x - w / 2, y - w / 2, x + w / 2, y + w / 2], h, rnd() * Math.PI * 2); return }
+      if (TREES.length) { const name = pick(TREES), h = (name === 'nbTreeCypress' ? 8 : name === 'nbTreeFicus' ? 7 : 5) * (.85 + rnd() * .3) * s, w = name === 'nbTreeCypress' ? 420 : 560 * s; place(name, [x - w / 2, y - w / 2, x + w / 2, y + w / 2], h, rnd() * Math.PI * 2); return }
       const h = (2.4 + rnd() * 1.4) * s
       b.box(x - 9, y - 9, x + 9, y + 9, 0, h, 'walnut')
       for (let i = 0; i < 4; i++) { const r = (1.1 + rnd() * .9) * s, g = new THREE.IcosahedronGeometry(r, 1); g.scale(1, .82, 1); g.translate(X(x + (rnd() - .5) * 140 * s), G + h + r * .5 + rnd() * .7, Z(y + (rnd() - .5) * 140 * s)); b.add(g, 'leaf') }
@@ -110,7 +110,7 @@ export default class Neighbourhood {
     const CARS = ['nbCarSuv', 'nbCarSedan'].filter(have)
     if (CARS.length) for (let u = pu1 - 2.5 * W; u < pu2 + 2.5 * W; u += 700 + rnd() * 900) {
       const near = rnd() < .5, v = near ? pv1 - WALK - 120 : pv1 - WALK - ROAD + 120, r = R(u, v - 95, u + 450, v + 95)
-      place(pick(CARS), r, 1.6, (alongX ? Math.PI / 2 : 0) + (near ? 0 : Math.PI))
+      place(pick(CARS), r, 1.6, (alongX ? 0 : Math.PI / 2) + (near ? 0 : Math.PI))        // the models' length runs along x
     }
     if (have('nbLamp')) for (let u = pu1 - 3 * W + 300; u < pu2 + 3 * W; u += 2200) { const [x, y] = P(u, pv1 - WALK - ROAD - WALK * .35); place('nbLamp', [x - 120, y - 120, x + 120, y + 120], 6, alongX ? 0 : Math.PI / 2) }
     // street trees
